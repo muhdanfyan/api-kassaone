@@ -1,0 +1,22 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
+
+class RoleSeeder extends Seeder
+{
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
+    {
+        \App\Models\Role::insert([
+            ['name' => 'Admin', 'description' => 'Akses penuh ke semua fitur manajemen'],
+            ['name' => 'Pengurus', 'description' => 'Akses manajemen sebagai pengurus'],
+            ['name' => 'Pengawas', 'description' => 'Akses untuk pengawasan'],
+            ['name' => 'Anggota', 'description' => 'Akses dasar ke data pribadi dan simpanan'],
+        ]);
+    }
+}
