@@ -14,7 +14,7 @@ class ShuMemberAllocationSeeder extends Seeder
      */
     public function run(): void
     {
-        $shu2024 = ShuDistribution::where('year', 2024)->first();
+        $shu2024 = ShuDistribution::where('fiscal_year', 2024)->first();
         $members = Member::all();
 
         if ($shu2024 && $members->isNotEmpty()) {
@@ -25,7 +25,7 @@ class ShuMemberAllocationSeeder extends Seeder
                 ShuMemberAllocation::create([
                     'shu_distribution_id' => $shu2024->id,
                     'member_id' => $member->id,
-                    'allocated_amount' => $allocationPerMember,
+                    'amount_allocated' => $allocationPerMember,
                 ]);
             }
         }

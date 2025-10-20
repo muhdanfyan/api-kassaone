@@ -25,7 +25,7 @@ use App\Http\Controllers\Api\TestimonialController;
 |
 */
 
-Route::post('/register', [AuthController::class, 'register']);
+Route::post('/register', [AuthController::class, 'register'])->middleware('api');
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {

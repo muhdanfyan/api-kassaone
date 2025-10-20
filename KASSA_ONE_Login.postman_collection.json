@@ -1,0 +1,32 @@
+{
+  "name": "Login User",
+  "request": {
+    "method": "POST",
+    "header": [
+      {
+        "key": "Content-Type",
+        "value": "application/json"
+      },
+      {
+        "key": "Accept",
+        "value": "application/json"
+      }
+    ],
+    "body": {
+      "mode": "raw",
+      "raw": "{\n  \"login\":\"buditester\",\n  \"password\":\"password123\"\n}"
+    },
+    "url": {
+      "raw": "{{base_url}}/api/login",
+      "host": [
+        "{{base_url}}"
+      ],
+      "path": [
+        "api",
+        "login"
+      ]
+    },
+    "description": "Login using username or email. Set `base_url` variable in your Postman environment (e.g., http://127.0.0.1:8000)."
+  },
+  "response": []
+}

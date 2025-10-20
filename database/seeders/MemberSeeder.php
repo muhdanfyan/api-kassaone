@@ -19,37 +19,38 @@ class MemberSeeder extends Seeder
 
         $membersData = [
             [
-                'name' => 'Ahmad Sudirman',
+                'full_name' => 'Ahmad Sudirman',
                 'email' => 'ahmad@email.com',
                 'phone_number' => '081234567890',
                 'address' => 'Jl. Merdeka No. 123, Jakarta',
                 'member_type' => 'Pendiri',
-                'date_joined' => '2020-01-15',
+                'join_date' => '2020-01-15',
                 'status' => 'Aktif',
             ],
             [
-                'name' => 'Siti Rahayu',
+                'full_name' => 'Siti Rahayu',
                 'email' => 'siti@email.com',
                 'phone_number' => '081234567891',
                 'address' => 'Jl. Kebangsaan No. 456, Jakarta',
                 'member_type' => 'Biasa',
-                'date_joined' => '2021-03-20',
+                'join_date' => '2021-03-20',
                 'status' => 'Aktif',
             ],
             [
-                'name' => 'Budi Santoso',
+                'full_name' => 'Budi Santoso',
                 'email' => 'budi@email.com',
                 'phone_number' => '081234567892',
                 'address' => 'Jl. Pancasila No. 789, Jakarta',
                 'member_type' => 'Calon',
-                'date_joined' => '2024-01-10',
+                'join_date' => '2024-01-10',
                 'status' => 'Aktif',
             ],
         ];
 
         foreach ($membersData as $key => $data) {
             $user = User::create([
-                'name' => $data['name'],
+                'name' => $data['full_name'],
+                'username' => explode('@', $data['email'])[0],
                 'email' => $data['email'],
                 'password' => Hash::make('password'),
                 'role_id' => $memberRole->id,
@@ -58,16 +59,12 @@ class MemberSeeder extends Seeder
             Member::create([
                 'user_id' => $user->id,
                 'member_id_number' => 'MEMBER-' . ($key + 1),
-                'name' => $data['name'],
-                'username' => $data['email'],
-                'email' => $data['email'],
-                'password' => Hash::make('password'),
+                'full_name' => $data['full_name'],
                 'address' => $data['address'],
                 'phone_number' => $data['phone_number'],
-                'date_joined' => $data['date_joined'],
+                'join_date' => $data['join_date'],
                 'member_type' => $data['member_type'],
                 'status' => $data['status'],
-                'role_id' => $memberRole->id,
             ]);
         }
     }

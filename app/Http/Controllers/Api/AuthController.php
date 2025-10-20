@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
+use App\Models\User;
 use App\Models\Member;
 use App\Models\Role; // Import Role model
 use Illuminate\Support\Facades\Hash;
@@ -15,15 +16,13 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
+            'member_id_number' => 'nullable|string|max:100|unique:members,member_id_number', // Make it optional but still unique if provided
             'full_name' => 'required|string|max:255',
-            'member_id_number' => 'required|string|max:100|unique:members',
-            'username' => 'required|string|max:100|unique:members',
-            'email' => 'nullable|string|email|max:255|unique:members',
-            'phone_number' => 'nullable|string|max:50',
-            'address' => 'nullable|string',
-            'join_date' => 'required|date',
+            'username' => 'required|string|max:100|unique:users',
+            'email' => 'nullable|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
-            'role_id' => 'sometimes|required|exists:roles,id', // Make role_id sometimes required
+            'role_id' => 'sometimes|required|exists:roles,id',
+            'join_date' => 'nullable|date',
         ]);
 
         // Find 'Anggota' role ID, or use provided role_id
@@ -36,58 +35,74 @@ class AuthController extends Controller
             $roleId = $anggotaRole->id;
         }
 
-
-        $member = Member::create([
-            'full_name' => $request->full_name,
-            'member_id_number' => $request->member_id_number,
+        $user = User::create([
+            'name' => $request->full_name,
             'username' => $request->username,
             'email' => $request->email,
-            'phone_number' => $request->phone_number,
-            'address' => $request->address,
-            'join_date' => $request->join_date,
             'password' => Hash::make($request->password),
-            'status' => 'active', // Default status to active
             'role_id' => $roleId,
         ]);
 
-        $token = $member->createToken('auth_token')->plainTextToken;
+        // Generate member_id_number automatically if not provided
+        $member_id_number = $request->member_id_number;
+        if (!$member_id_number) {
+            // Find the last member to determine the next ID
+            $lastMember = Member::orderBy('id', 'desc')->first();
+            if ($lastMember && preg_match('/M-(\d+)/', $lastMember->member_id_number, $matches)) {
+                $nextId = (int)$matches[1] + 1;
+            } else {
+                $nextId = 1; // Start from 1 if no members exist or format doesn't match
+            }
+            $member_id_number = 'M-' . str_pad($nextId, 5, '0', STR_PAD_LEFT);
+        }
 
-        // Eager load role for the response
-        $member->load('role');
+        $member = $user->member()->create([
+            'full_name' => $request->full_name,
+            'member_id_number' => $member_id_number,
+            'phone_number' => $request->phone_number,
+            'address' => $request->address,
+            'join_date' => $request->join_date ?? now(),
+            'status' => 'Aktif',
+        ]);
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        $user->load('role', 'member');
 
         return response()->json([
             'message' => 'Registration successful',
             'access_token' => $token,
             'token_type' => 'Bearer',
-            'user' => $member, // Changed 'member' to 'user' for consistency with project.md
+            'user' => $user,
         ], 201);
     }
 
     public function login(Request $request)
     {
         $request->validate([
-            'username' => 'required|string',
+            'login' => 'required|string',
             'password' => 'required|string',
         ]);
 
-        $member = Member::where('username', $request->username)->first();
+        $loginField = filter_var($request->login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
 
-        if (!$member || !Hash::check($request->password, $member->password)) {
+        $user = User::where($loginField, $request->login)->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
-                'username' => ['These credentials do not match our records.'],
+                'login' => ['These credentials do not match our records.'],
             ]);
         }
 
-        $token = $member->createToken('auth_token')->plainTextToken;
+        $token = $user->createToken('auth_token')->plainTextToken;
 
-        // Eager load role for the response
-        $member->load('role');
+        $user->load('role', 'member');
 
         return response()->json([
             'message' => 'Login successful',
             'access_token' => $token,
             'token_type' => 'Bearer',
-            'user' => $member, // Changed 'member' to 'user' for consistency with project.md
+            'user' => $user,
         ]);
     }
 

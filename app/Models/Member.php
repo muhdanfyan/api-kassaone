@@ -12,13 +12,13 @@ class Member extends Authenticatable // Extend Authenticatable instead of Model
 
     protected $fillable = [
         'member_id_number',
-        'name',
+        'full_name',
         'username',
         'password',
         'email',
         'phone_number',
         'address',
-        'date_joined',
+        'join_date',
         'status',
         'role_id',
     ];
