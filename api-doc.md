@@ -683,6 +683,17 @@ This response is returned when validation fails for a `POST` or `PUT` request.
       "payout_transaction_id": "integer (nullable, exists in transactions table)"
   }
   ```
+* **Example cURL:**
+  ```bash
+  curl -X POST 'http://127.0.0.1:8000/api/shu-distributions/1/allocations' \
+  -H 'Authorization: Bearer {{access_token}}' \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -d '{
+      "member_id": 1,
+      "amount_allocated": "250000"
+  }'
+  ```
 * **Response Body (201 Created):** New SHU member allocation object.
 
 ### 33. Update SHU Member Allocation
