@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\HasCuid;
 use Illuminate\Database\Eloquent\Model;
 
 class SavingsAccount extends Model
 {
+    use HasCuid;
+
     protected $fillable = [
         'member_id',
         'account_type',

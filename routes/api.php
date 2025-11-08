@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\MeetingAttendanceController;
 use App\Http\Controllers\Api\ShuDistributionController;
 use App\Http\Controllers\Api\ShuMemberAllocationController;
 use App\Http\Controllers\Api\TestimonialController;
+use App\Http\Controllers\Api\OrganizationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,49 +26,102 @@ use App\Http\Controllers\Api\TestimonialController;
 |
 */
 
-Route::post('/register', [AuthController::class, 'register'])->middleware('api');
+// Public routes (no authentication)
+Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/public/upload-payment-proof', [AuthController::class, 'uploadPaymentProofPublic']);
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']);
+// Routes for pending members (requires JWT but allows pending status)
+Route::middleware(['auth:api'])->group(function () {
+    // Allow pending members to upload payment proof
+    Route::post('/member/upload-payment-proof', [AuthController::class, 'uploadPaymentProof']);
+    Route::get('/member/status', [AuthController::class, 'getMemberStatus']);
+});
+
+// Routes that require JWT authentication only (GET requests)
+Route::middleware(['auth:api'])->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
-
+    Route::post('/refresh-token', [AuthController::class, 'refreshToken']);
+    Route::post('/refresh-csrf', [AuthController::class, 'refreshCsrfToken']);
+    
+    // GET routes - only JWT required
     Route::get('/general-transactions', [GeneralTransactionController::class, 'index']);
     Route::get('/general-transactions/chart', [GeneralTransactionController::class, 'chart']);
-
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
+    Route::get('/member-types', [MemberController::class, 'getMemberTypes']);
+    Route::get('/members', [MemberController::class, 'index']);
+    Route::get('/members/{member}', [MemberController::class, 'show']);
+    Route::get('/members/{member}/savings', [SavingsAccountController::class, 'index']);
+    
+    // Payment Management (Admin)
+    Route::get('/members/verification/status', [MemberController::class, 'getByVerificationStatus']);
+    Route::get('/members/payment/stats', [MemberController::class, 'getPaymentStats']);
+    Route::get('/members/simpanan-pokok/stats', [MemberController::class, 'getSimpananPokokStats']);
+    Route::post('/members/migrate-old-simpanan-pokok', [MemberController::class, 'migrateOldMembersSimpananPokok']);
+    
+    Route::get('/savings/{savingsAccount}', [SavingsAccountController::class, 'show']);
+    Route::get('/transactions', [TransactionController::class, 'index']);
+    Route::get('/transactions/{transaction}', [TransactionController::class, 'show']);
+    Route::get('/meetings', [MeetingController::class, 'index']);
+    Route::get('/meetings/{meeting}', [MeetingController::class, 'show']);
+    Route::get('/meetings/{meeting}/attendance', [MeetingAttendanceController::class, 'index']);
+    Route::get('/shu-distributions', [ShuDistributionController::class, 'index']);
+    Route::get('/shu-distributions/{shuDistribution}', [ShuDistributionController::class, 'show']);
+    Route::get('/shu-distributions/{shuDistribution}/allocations', [ShuMemberAllocationController::class, 'index']);
+    Route::get('/shu-allocations/{shuMemberAllocation}', [ShuMemberAllocationController::class, 'show']);
+    
+    // Organization Management
+    Route::get('/organization', [OrganizationController::class, 'index']);
+    Route::get('/roles', [OrganizationController::class, 'getRoles']);
+});
 
+// Routes that require both JWT authentication AND CSRF token (POST, PUT, PATCH, DELETE)
+Route::middleware(['auth:api', \App\Http\Middleware\ValidateCsrfToken::class])->group(function () {
+    // Logout requires CSRF
+    Route::post('/logout', [AuthController::class, 'logout']);
+    
     // Member Management
-    Route::apiResource('/members', MemberController::class);
+    Route::post('/members', [MemberController::class, 'store']);
+    Route::put('/members/{member}', [MemberController::class, 'update']);
+    Route::delete('/members/{member}', [MemberController::class, 'destroy']);
+    
+    // Payment Approval (Admin only)
+    Route::post('/members/{member}/approve-payment', [MemberController::class, 'approvePayment']);
+    Route::post('/members/{member}/reject-payment', [MemberController::class, 'rejectPayment']);
+    
+    // Member Profile Updates (for pending members)
+    Route::put('/members/{member}/personal-info', [MemberController::class, 'updatePersonalInfo']);
+    Route::put('/members/{member}/heir-info', [MemberController::class, 'updateHeirInfo']);
+    Route::put('/members/{member}/monthly-savings', [MemberController::class, 'updateMonthlySavings']);
 
     // Savings Accounts
-    Route::get('/members/{member}/savings', [SavingsAccountController::class, 'index']);
     Route::post('/members/{member}/savings', [SavingsAccountController::class, 'store']);
-    Route::get('/savings/{savingsAccount}', [SavingsAccountController::class, 'show']);
     Route::put('/savings/{savingsAccount}', [SavingsAccountController::class, 'update']);
 
     // Transactions
-    Route::get('/transactions', [TransactionController::class, 'index']);
-    Route::get('/transactions/{transaction}', [TransactionController::class, 'show']);
     Route::post('/transactions', [TransactionController::class, 'store']);
 
     // Meetings
-    Route::apiResource('/meetings', MeetingController::class);
+    Route::post('/meetings', [MeetingController::class, 'store']);
+    Route::put('/meetings/{meeting}', [MeetingController::class, 'update']);
+    Route::delete('/meetings/{meeting}', [MeetingController::class, 'destroy']);
 
     // Meeting Attendance
-    Route::get('/meetings/{meeting}/attendance', [MeetingAttendanceController::class, 'index']);
     Route::post('/meetings/{meeting}/attendance', [MeetingAttendanceController::class, 'store']);
     Route::put('/meeting-attendance/{meetingAttendance}', [MeetingAttendanceController::class, 'update']);
 
     // SHU Distributions
-    Route::apiResource('/shu-distributions', ShuDistributionController::class);
+    Route::post('/shu-distributions', [ShuDistributionController::class, 'store']);
+    Route::put('/shu-distributions/{shuDistribution}', [ShuDistributionController::class, 'update']);
+    Route::delete('/shu-distributions/{shuDistribution}', [ShuDistributionController::class, 'destroy']);
 
     // SHU Member Allocations
-    Route::get('/shu-distributions/{shuDistribution}/allocations', [ShuMemberAllocationController::class, 'index']);
     Route::post('/shu-distributions/{shuDistribution}/allocations', [ShuMemberAllocationController::class, 'store']);
-    Route::get('/shu-allocations/{shuMemberAllocation}', [ShuMemberAllocationController::class, 'show']);
     Route::put('/shu-allocations/{shuMemberAllocation}', [ShuMemberAllocationController::class, 'update']);
 
     // Testimonials
     Route::post('/testimonials', [TestimonialController::class, 'store']);
+    
+    // Organization Management
+    Route::put('/members/{member}/position', [OrganizationController::class, 'updatePosition']);
 });

@@ -12,7 +12,8 @@ class SavingsAccountController extends Controller
 {
     public function index(Member $member)
     {
-        return response()->json($member->savingsAccounts);
+        $accounts = $member->savingsAccounts()->with('member')->get();
+        return response()->json($accounts);
     }
 
     public function show(SavingsAccount $savingsAccount)

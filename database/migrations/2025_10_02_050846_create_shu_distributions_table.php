@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('shu_distributions', function (Blueprint $table) {
-            $table->id();
+            $table->string('id', 25)->primary();
             $table->integer('fiscal_year')->unique();
             $table->decimal('total_shu_amount', 15, 2);
             $table->decimal('reserve_percentage', 5, 2)->default(0);

@@ -12,11 +12,9 @@ class RoleSeeder extends Seeder
      */
     public function run(): void
     {
-        \App\Models\Role::insert([
-            ['name' => 'Admin', 'description' => 'Akses penuh ke semua fitur manajemen'],
-            ['name' => 'Pengurus', 'description' => 'Akses manajemen sebagai pengurus'],
-            ['name' => 'Pengawas', 'description' => 'Akses untuk pengawasan'],
-            ['name' => 'Anggota', 'description' => 'Akses dasar ke data pribadi dan simpanan'],
-        ]);
+        \App\Models\Role::create(['name' => 'Admin', 'description' => 'Akses penuh ke semua fitur manajemen']);
+        \App\Models\Role::create(['name' => 'Pengurus', 'description' => 'Akses manajemen sebagai pengurus']);
+        \App\Models\Role::create(['name' => 'Pengawas', 'description' => 'Akses untuk pengawasan']);
+        \App\Models\Role::create(['name' => 'Anggota', 'description' => 'Akses dasar ke data pribadi dan simpanan']);
     }
 }

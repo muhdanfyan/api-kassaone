@@ -12,12 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('members', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->string('full_name');
+            $table->string('id', 25)->primary();
+            // Removed user_id foreign key - members table now handles auth directly
+            $table->string('name');
             $table->string('address')->nullable();
             $table->string('phone_number', 50)->nullable();
-            $table->date('join_date');
+            $table->date('date_joined');
             $table->enum('member_type', ['Pendiri', 'Biasa', 'Calon', 'Kehormatan'])->default('Biasa');
             $table->enum('status', ['Aktif', 'Tidak Aktif', 'Ditangguhkan'])->default('Aktif');
             $table->timestamps();

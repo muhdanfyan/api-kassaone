@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\User;
 use App\Models\Member;
 use App\Models\Role;
 use Illuminate\Support\Facades\Hash;
@@ -48,23 +47,18 @@ class MemberSeeder extends Seeder
         ];
 
         foreach ($membersData as $key => $data) {
-            $user = User::create([
-                'name' => $data['full_name'],
-                'username' => explode('@', $data['email'])[0],
-                'email' => $data['email'],
-                'password' => Hash::make('password'),
-                'role_id' => $memberRole->id,
-            ]);
-
             Member::create([
-                'user_id' => $user->id,
                 'member_id_number' => 'MEMBER-' . ($key + 1),
                 'full_name' => $data['full_name'],
+                'username' => strtolower(explode(' ', $data['full_name'])[0]), // Use first name as username
+                'email' => $data['email'],
+                'password' => Hash::make('password'),
                 'address' => $data['address'],
                 'phone_number' => $data['phone_number'],
                 'join_date' => $data['join_date'],
                 'member_type' => $data['member_type'],
                 'status' => $data['status'],
+                'role_id' => $memberRole->id,
             ]);
         }
     }

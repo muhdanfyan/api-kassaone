@@ -5,24 +5,41 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
-use App\Models\User;
 use App\Models\Member;
-use App\Models\Role; // Import Role model
+use App\Models\Role;
+use App\Models\CsrfToken;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Tymon\JWTAuth\Facades\JWTAuth;
+use Tymon\JWTAuth\Exceptions\JWTException;
 
 class AuthController extends Controller
 {
     public function register(Request $request)
     {
+        // Log incoming request data for debugging
+        Log::info('Register request received', [
+            'data' => $request->except(['password', 'password_confirmation']),
+            'has_ktp' => $request->hasFile('ktp_scan'),
+            'has_selfie' => $request->hasFile('selfie_with_ktp'),
+        ]);
+
         $request->validate([
-            'member_id_number' => 'nullable|string|max:100|unique:members,member_id_number', // Make it optional but still unique if provided
             'full_name' => 'required|string|max:255',
-            'username' => 'required|string|max:100|unique:users',
-            'email' => 'nullable|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-            'role_id' => 'sometimes|required|exists:roles,id',
+            'member_id_number' => 'nullable|string|max:100|unique:members',
+            'username' => 'required|string|max:100|unique:members',
+            'email' => 'nullable|string|email|max:255|unique:members',
+            'phone_number' => 'nullable|string|max:50',
+            'address' => 'nullable|string',
             'join_date' => 'nullable|date',
+            'password' => 'required|string|min:8|confirmed',
+            'member_type' => 'required|' . Member::memberTypeRule(),
+            'role_id' => 'sometimes|required|exists:roles,id',
+            'ktp_scan' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'selfie_with_ktp' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'nik' => 'nullable|string|max:20',
         ]);
 
         // Find 'Anggota' role ID, or use provided role_id
@@ -35,88 +52,364 @@ class AuthController extends Controller
             $roleId = $anggotaRole->id;
         }
 
-        $user = User::create([
-            'name' => $request->full_name,
-            'username' => $request->username,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role_id' => $roleId,
-        ]);
-
-        // Generate member_id_number automatically if not provided
-        $member_id_number = $request->member_id_number;
-        if (!$member_id_number) {
-            // Find the last member to determine the next ID
-            $lastMember = Member::orderBy('id', 'desc')->first();
-            if ($lastMember && preg_match('/M-(\d+)/', $lastMember->member_id_number, $matches)) {
-                $nextId = (int)$matches[1] + 1;
+        // Generate member_id_number if not provided
+        $memberIdNumber = $request->member_id_number;
+        if (!$memberIdNumber) {
+            // Get the last member_id_number and increment
+            $lastMember = Member::whereNotNull('member_id_number')
+                ->orderBy('member_id_number', 'desc')
+                ->first();
+            
+            if ($lastMember && preg_match('/MEM-(\d+)/', $lastMember->member_id_number, $matches)) {
+                $nextNumber = (int)$matches[1] + 1;
             } else {
-                $nextId = 1; // Start from 1 if no members exist or format doesn't match
+                $nextNumber = 1;
             }
-            $member_id_number = 'M-' . str_pad($nextId, 5, '0', STR_PAD_LEFT);
+            
+            // Ensure uniqueness - if exists, keep incrementing
+            do {
+                $memberIdNumber = 'MEM-' . str_pad((string)$nextNumber, 4, '0', STR_PAD_LEFT);
+                $exists = Member::where('member_id_number', $memberIdNumber)->exists();
+                if ($exists) {
+                    $nextNumber++;
+                }
+            } while ($exists);
         }
 
-        $member = $user->member()->create([
+        // Use current date if join_date not provided
+        $joinDate = $request->join_date ?? now()->format('Y-m-d');
+
+        // Handle file uploads
+        $ktpScanPath = null;
+        $selfieWithKtpPath = null;
+
+        if ($request->hasFile('ktp_scan')) {
+            $ktpScanPath = $request->file('ktp_scan')->store('members/ktp', 'public');
+        }
+
+        if ($request->hasFile('selfie_with_ktp')) {
+            $selfieWithKtpPath = $request->file('selfie_with_ktp')->store('members/selfie', 'public');
+        }
+
+        $member = Member::create([
             'full_name' => $request->full_name,
-            'member_id_number' => $member_id_number,
+            'member_id_number' => $memberIdNumber,
+            'username' => $request->username,
+            'email' => $request->email,
             'phone_number' => $request->phone_number,
             'address' => $request->address,
-            'join_date' => $request->join_date ?? now(),
+            'ktp_scan' => $ktpScanPath,
+            'selfie_with_ktp' => $selfieWithKtpPath,
+            'nik' => $request->nik,
+            'join_date' => $joinDate,
+            'password' => Hash::make($request->password),
             'status' => 'Aktif',
+            'member_type' => $request->member_type ?? 'Biasa',
+            'role_id' => $roleId,
+            'verification_status' => Member::VERIFICATION_PENDING, // Set pending, need payment
+            'payment_amount' => 1000000, // Default Rp 1.000.000 for Simpanan Pokok
         ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        $user->load('role', 'member');
-
         return response()->json([
-            'message' => 'Registration successful',
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'user' => $user,
+            'message' => 'Pendaftaran berhasil! Silakan login dan upload bukti pembayaran Simpanan Pokok sebesar Rp 1.000.000',
+            'user' => [
+                'username' => $member->username,
+                'full_name' => $member->full_name,
+                'member_id_number' => $member->member_id_number,
+            ],
         ], 201);
     }
 
     public function login(Request $request)
     {
         $request->validate([
-            'login' => 'required|string',
+            'username' => 'required|string',
             'password' => 'required|string',
         ]);
 
-        $loginField = filter_var($request->login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+        $credentials = $request->only('username', 'password');
 
-        $user = User::where($loginField, $request->login)->first();
-
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'login' => ['These credentials do not match our records.'],
-            ]);
+        try {
+            if (!$token = JWTAuth::attempt($credentials)) {
+                return response()->json([
+                    'message' => 'Invalid credentials',
+                    'error' => 'invalid_credentials'
+                ], 401);
+            }
+        } catch (JWTException $e) {
+            return response()->json([
+                'message' => 'Could not create token',
+                'error' => 'token_creation_failed'
+            ], 500);
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // Get authenticated member
+        $member = JWTAuth::user();
+        $member->load('role');
 
-        $user->load('role', 'member');
+        // Check verification status
+        if (!$member->canLogin()) {
+            $statusMessages = [
+                Member::VERIFICATION_PENDING => 'Your account is pending verification. Please complete payment to proceed.',
+                Member::VERIFICATION_PAYMENT_PENDING => 'Your payment is being verified by admin. Please wait for confirmation.',
+                Member::VERIFICATION_REJECTED => 'Your account has been rejected. Reason: ' . ($member->rejected_reason ?? 'Not specified'),
+            ];
+
+            return response()->json([
+                'message' => $statusMessages[$member->verification_status] ?? 'Account verification required',
+                'error' => 'account_not_verified',
+                'verification_status' => $member->verification_status,
+                'payment_amount' => $member->payment_amount,
+                'rejected_reason' => $member->rejected_reason,
+                'user' => $member,
+            ], 403);
+        }
+
+        // Generate CSRF token (expires in 24 hours)
+        $csrfToken = CsrfToken::create([
+            'member_id' => $member->id,
+            'expires_at' => now()->addHours(24),
+        ]);
 
         return response()->json([
             'message' => 'Login successful',
             'access_token' => $token,
             'token_type' => 'Bearer',
-            'user' => $user,
+            'csrf_token' => $csrfToken->id,
+            'csrf_expires_at' => $csrfToken->expires_at->toIso8601String(),
+            'user' => $member,
         ]);
     }
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        try {
+            // Get authenticated user
+            $user = JWTAuth::parseToken()->authenticate();
+            
+            // Delete all CSRF tokens for this user
+            CsrfToken::where('member_id', $user->id)->delete();
+            
+            // Invalidate JWT token
+            JWTAuth::invalidate(JWTAuth::getToken());
 
-        return response()->json(['message' => 'Logged out successfully']);
+            return response()->json(['message' => 'Logged out successfully']);
+        } catch (JWTException $e) {
+            return response()->json([
+                'message' => 'Failed to logout',
+                'error' => 'logout_failed'
+            ], 500);
+        }
     }
 
     public function user(Request $request)
     {
-        // Eager load role for the response
-        $user = $request->user()->load('role');
-        return response()->json($user);
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+            $user->load('role');
+            return response()->json($user);
+        } catch (JWTException $e) {
+            return response()->json([
+                'message' => 'User not found',
+                'error' => 'user_not_found'
+            ], 404);
+        }
+    }
+
+    public function refreshToken(Request $request)
+    {
+        try {
+            $newToken = JWTAuth::refresh(JWTAuth::getToken());
+            
+            return response()->json([
+                'access_token' => $newToken,
+                'token_type' => 'Bearer',
+            ]);
+        } catch (JWTException $e) {
+            return response()->json([
+                'message' => 'Token could not be refreshed',
+                'error' => 'token_refresh_failed'
+            ], 500);
+        }
+    }
+
+    public function refreshCsrfToken(Request $request)
+    {
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+            
+            // Generate new CSRF token
+            $csrfToken = CsrfToken::create([
+                'member_id' => $user->id,
+                'expires_at' => now()->addHours(24),
+            ]);
+
+            return response()->json([
+                'csrf_token' => $csrfToken->id,
+                'csrf_expires_at' => $csrfToken->expires_at->toIso8601String(),
+            ]);
+        } catch (JWTException $e) {
+            return response()->json([
+                'message' => 'Authentication failed',
+                'error' => 'authentication_failed'
+            ], 401);
+        }
+    }
+
+    public function uploadPaymentProof(Request $request)
+    {
+        $request->validate([
+            'payment_proof' => 'required|file|mimes:jpeg,png,jpg,pdf|max:5120', // Max 5MB
+        ]);
+
+        try {
+            Log::info('🔐 Upload Payment Proof - Attempting authentication');
+            Log::info('🔐 Authorization Header: ' . $request->header('Authorization'));
+            
+            $member = JWTAuth::parseToken()->authenticate();
+            
+            Log::info('✅ Member authenticated: ' . $member->id);
+            Log::info('📋 Member status: ' . $member->verification_status);
+
+            // Check if member is in pending status
+            if ($member->verification_status !== Member::VERIFICATION_PENDING) {
+                return response()->json([
+                    'message' => 'Payment proof can only be uploaded for pending accounts',
+                    'current_status' => $member->verification_status,
+                ], 400);
+            }
+
+            // Handle file upload
+            $paymentProofPath = null;
+            if ($request->hasFile('payment_proof')) {
+                // Delete old payment proof if exists
+                if ($member->payment_proof && Storage::disk('public')->exists($member->payment_proof)) {
+                    Storage::disk('public')->delete($member->payment_proof);
+                }
+
+                $paymentProofPath = $request->file('payment_proof')->store('members/payment_proofs', 'public');
+            }
+
+            // Update member status
+            $member->update([
+                'payment_proof' => $paymentProofPath,
+                'payment_uploaded_at' => now(),
+                'verification_status' => Member::VERIFICATION_PAYMENT_PENDING,
+            ]);
+
+            return response()->json([
+                'message' => 'Payment proof uploaded successfully. Waiting for admin verification.',
+                'verification_status' => $member->verification_status,
+                'payment_uploaded_at' => $member->payment_uploaded_at,
+            ]);
+        } catch (JWTException $e) {
+            Log::error('❌ JWT Authentication failed: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Token tidak valid atau telah kadaluarsa. Silakan login ulang.',
+                'error' => 'authentication_failed',
+                'details' => $e->getMessage()
+            ], 401);
+        } catch (\Exception $e) {
+            Log::error('❌ Upload payment proof error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat upload bukti pembayaran',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Upload payment proof using payment_upload_token (public endpoint, no JWT required)
+     * This allows pending users to upload payment proof without authentication issues
+     */
+    public function uploadPaymentProofPublic(Request $request)
+    {
+        try {
+            Log::info('🔓 Public Upload Payment Proof - Start');
+            
+            $request->validate([
+                'payment_upload_token' => 'required|string|size:64',
+                'payment_proof' => 'required|file|mimes:jpeg,png,jpg,pdf|max:5120', // Max 5MB
+            ]);
+
+            Log::info('✅ Validation passed, looking up member by token');
+
+            // Find member by payment upload token (only pending members)
+            $member = Member::where('payment_upload_token', $request->payment_upload_token)
+                ->where('verification_status', Member::VERIFICATION_PENDING)
+                ->first();
+
+            if (!$member) {
+                Log::warning('❌ Invalid or expired payment upload token');
+                return response()->json([
+                    'message' => 'Token tidak valid atau telah kadaluarsa. Silakan daftar ulang.',
+                    'error' => 'invalid_token'
+                ], 404);
+            }
+
+            Log::info('✅ Member found: ' . $member->id . ' (' . $member->username . ')');
+
+            // Delete old payment proof if exists
+            if ($member->payment_proof && Storage::disk('public')->exists($member->payment_proof)) {
+                Storage::disk('public')->delete($member->payment_proof);
+                Log::info('🗑️ Old payment proof deleted');
+            }
+
+            // Store new payment proof
+            $paymentProofPath = $request->file('payment_proof')->store('members/payment_proofs', 'public');
+            Log::info('💾 New payment proof stored: ' . $paymentProofPath);
+
+            // Update member record
+            $member->update([
+                'payment_proof' => $paymentProofPath,
+                'payment_uploaded_at' => now(),
+                'verification_status' => Member::VERIFICATION_PAYMENT_PENDING,
+                // Clear the token after successful upload for security
+                'payment_upload_token' => null,
+            ]);
+
+            Log::info('✅ Member updated, status changed to: ' . Member::VERIFICATION_PAYMENT_PENDING);
+
+            return response()->json([
+                'message' => 'Bukti pembayaran berhasil diupload. Menunggu verifikasi admin.',
+                'payment_proof_url' => asset('storage/' . $paymentProofPath),
+                'verification_status' => Member::VERIFICATION_PAYMENT_PENDING,
+                'next_step' => 'waiting_verification',
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('❌ Validation failed: ' . json_encode($e->errors()));
+            return response()->json([
+                'message' => 'Data tidak valid',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('❌ Public upload payment proof error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat upload bukti pembayaran',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getMemberStatus(Request $request)
+    {
+        try {
+            $member = JWTAuth::parseToken()->authenticate();
+            $member->load('role');
+
+            return response()->json([
+                'user' => $member,
+                'verification_status' => $member->verification_status,
+                'can_login' => $member->canLogin(),
+                'payment_amount' => $member->payment_amount,
+                'payment_uploaded_at' => $member->payment_uploaded_at,
+            ]);
+        } catch (JWTException $e) {
+            return response()->json([
+                'message' => 'Authentication failed',
+                'error' => 'authentication_failed'
+            ], 401);
+        }
     }
 }

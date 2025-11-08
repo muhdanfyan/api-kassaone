@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\HasCuid;
 use Illuminate\Database\Eloquent\Model;
 
 class Meeting extends Model
 {
+    use HasCuid;
+
     public $timestamps = false; // Only has created_at
 
     protected $fillable = [
@@ -13,6 +16,10 @@ class Meeting extends Model
         'description',
         'meeting_date',
         'location',
+        'type',
+        'agenda',
+        'summary',
+        'status',
     ];
 
     protected $casts = [

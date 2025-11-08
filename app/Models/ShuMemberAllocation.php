@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\HasCuid;
 use Illuminate\Database\Eloquent\Model;
 
 class ShuMemberAllocation extends Model
 {
+    use HasCuid;
+
     public $timestamps = false; // No timestamps in schema
 
     protected $fillable = [

@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\HasCuid;
 use Illuminate\Database\Eloquent\Model;
 
 class MeetingAttendance extends Model
 {
+    use HasCuid;
+
     public $timestamps = false; // This is a pivot table, no timestamps
 
     protected $table = 'meeting_attendance'; // Explicitly set table name

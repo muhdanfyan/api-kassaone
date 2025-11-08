@@ -11,14 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('savings_accounts', function (Blueprint $table) {
-            $table->string('id', 25)->primary();
+        Schema::create('csrf_tokens', function (Blueprint $table) {
+            $table->uuid('id')->primary();
             $table->string('member_id', 25);
             $table->foreign('member_id')->references('id')->on('members')->onDelete('cascade');
-            $table->enum('account_type', ['pokok', 'wajib', 'sukarela']);
-            $table->decimal('balance', 15, 2)->default(0.00);
-            $table->timestamps();
-            $table->unique(['member_id', 'account_type']);
+            $table->timestamp('expires_at');
+            $table->timestamp('created_at')->useCurrent();
+            
+            $table->index(['member_id', 'expires_at']);
         });
     }
 
@@ -27,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('savings_accounts');
+        Schema::dropIfExists('csrf_tokens');
     }
 };

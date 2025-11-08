@@ -11,10 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('roles', function (Blueprint $table) {
-            $table->string('id', 25)->primary();
-            $table->string('name', 50)->unique();
-            $table->text('description')->nullable();
+        Schema::table('members', function (Blueprint $table) {
+            $table->string('payment_upload_token', 64)->nullable()->unique()->after('payment_amount');
         });
     }
 
@@ -23,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('roles');
+        Schema::table('members', function (Blueprint $table) {
+            $table->dropColumn('payment_upload_token');
+        });
     }
 };

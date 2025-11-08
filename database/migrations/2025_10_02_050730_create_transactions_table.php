@@ -12,9 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('transactions', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('savings_account_id')->constrained('savings_accounts');
-            $table->foreignId('member_id')->constrained('members');
+            $table->string('id', 25)->primary();
+            $table->string('savings_account_id', 25);
+            $table->foreign('savings_account_id')->references('id')->on('savings_accounts');
+            $table->string('member_id', 25);
+            $table->foreign('member_id')->references('id')->on('members');
             $table->enum('transaction_type', ['deposit', 'withdrawal', 'shu_distribution', 'fee']);
             $table->decimal('amount', 15, 2);
             $table->text('description')->nullable();

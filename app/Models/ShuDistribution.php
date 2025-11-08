@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\HasCuid;
 use Illuminate\Database\Eloquent\Model;
 
 class ShuDistribution extends Model
 {
+    use HasCuid;
+
     public $timestamps = false; // Only has created_at
 
     protected $fillable = [
