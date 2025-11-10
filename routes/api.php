@@ -10,11 +10,13 @@ use App\Http\Controllers\Api\SavingsAccountController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\MeetingController;
 use App\Http\Controllers\Api\MeetingAttendanceController;
-use App\Http\Controllers\Api\ShuDistributionController;
+use App\Http\Controllers\Api\ShuDistributionController as ApiShuDistributionController;
 use App\Http\Controllers\Api\ShuMemberAllocationController;
 use App\Http\Controllers\Api\TestimonialController;
 use App\Http\Controllers\Api\OrganizationController;
 use App\Http\Controllers\Api\SettingsController;
+use App\Http\Controllers\SHUDistributionController;
+use App\Http\Controllers\ShuPercentageSettingController;
 
 /*
 |--------------------------------------------------------------------------
@@ -66,9 +68,21 @@ Route::middleware(['auth:api'])->group(function () {
     Route::get('/meetings', [MeetingController::class, 'index']);
     Route::get('/meetings/{meeting}', [MeetingController::class, 'show']);
     Route::get('/meetings/{meeting}/attendance', [MeetingAttendanceController::class, 'index']);
-    Route::get('/shu-distributions', [ShuDistributionController::class, 'index']);
-    Route::get('/shu-distributions/{shuDistribution}', [ShuDistributionController::class, 'show']);
-    Route::get('/shu-distributions/{shuDistribution}/allocations', [ShuMemberAllocationController::class, 'index']);
+    
+    // SHU Distributions - Enhanced with new endpoints
+    Route::get('/shu-distributions', [SHUDistributionController::class, 'index']);
+    Route::get('/shu-distributions/{id}', [SHUDistributionController::class, 'show']);
+    Route::get('/shu-distributions/{id}/allocations', [SHUDistributionController::class, 'getAllocations']);
+    Route::get('/shu-distributions/{id}/report', [SHUDistributionController::class, 'report']);
+    
+    // SHU Percentage Settings
+    Route::get('/shu-settings', [ShuPercentageSettingController::class, 'index']);
+    Route::get('/shu-settings/{id}', [ShuPercentageSettingController::class, 'show']);
+    
+    // Legacy SHU routes (if needed)
+    // Route::get('/shu-distributions', [ApiShuDistributionController::class, 'index']);
+    // Route::get('/shu-distributions/{shuDistribution}', [ApiShuDistributionController::class, 'show']);
+    // Route::get('/shu-distributions/{shuDistribution}/allocations', [ShuMemberAllocationController::class, 'index']);
     Route::get('/shu-allocations/{shuMemberAllocation}', [ShuMemberAllocationController::class, 'show']);
     
     // Organization Management
@@ -114,10 +128,25 @@ Route::middleware(['auth:api', \App\Http\Middleware\ValidateCsrfToken::class])->
     Route::post('/meetings/{meeting}/attendance', [MeetingAttendanceController::class, 'store']);
     Route::put('/meeting-attendance/{meetingAttendance}', [MeetingAttendanceController::class, 'update']);
 
-    // SHU Distributions
-    Route::post('/shu-distributions', [ShuDistributionController::class, 'store']);
-    Route::put('/shu-distributions/{shuDistribution}', [ShuDistributionController::class, 'update']);
-    Route::delete('/shu-distributions/{shuDistribution}', [ShuDistributionController::class, 'destroy']);
+    // SHU Distributions - Enhanced with new endpoints
+    Route::post('/shu-distributions', [SHUDistributionController::class, 'store']);
+    Route::put('/shu-distributions/{id}', [SHUDistributionController::class, 'update']);
+    Route::delete('/shu-distributions/{id}', [SHUDistributionController::class, 'destroy']);
+    Route::post('/shu-distributions/{id}/calculate', [SHUDistributionController::class, 'calculateAllocations']);
+    Route::post('/shu-distributions/{id}/approve', [SHUDistributionController::class, 'approve']);
+    Route::post('/shu-distributions/{id}/payout', [SHUDistributionController::class, 'batchPayout']);
+    
+    // SHU Percentage Settings
+    Route::post('/shu-settings', [ShuPercentageSettingController::class, 'store']);
+    Route::put('/shu-settings/{id}', [ShuPercentageSettingController::class, 'update']);
+    Route::delete('/shu-settings/{id}', [ShuPercentageSettingController::class, 'destroy']);
+    Route::post('/shu-settings/{id}/activate', [ShuPercentageSettingController::class, 'activate']);
+    Route::post('/shu-settings/{id}/preview', [ShuPercentageSettingController::class, 'preview']);
+    
+    // Legacy SHU routes (if needed)
+    // Route::post('/shu-distributions', [ApiShuDistributionController::class, 'store']);
+    // Route::put('/shu-distributions/{shuDistribution}', [ApiShuDistributionController::class, 'update']);
+    // Route::delete('/shu-distributions/{shuDistribution}', [ApiShuDistributionController::class, 'destroy']);
 
     // SHU Member Allocations
     Route::post('/shu-distributions/{shuDistribution}/allocations', [ShuMemberAllocationController::class, 'store']);

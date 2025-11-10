@@ -558,70 +558,350 @@ This response is returned when validation fails for a `POST` or `PUT` request.
 
 ## SHU Distributions
 
-### 26. Get All SHU Distributions
+> **💡 Update:** SHU Management telah ditingkatkan dengan fitur workflow lengkap (draft → calculate → approve → payout) dan auto-calculation berdasarkan jasa modal & jasa usaha.
+
+### 26. Get All SHU Distributions (Enhanced)
 
 * **Endpoint:** `GET /shu-distributions`
-* **Description:** Retrieves a list of all SHU distributions.
+* **Description:** Retrieves a list of all SHU distributions with enhanced information including payment progress and member counts.
 * **Authentication:** Required (Bearer Token)
+* **Query Parameters:**
+  * `per_page`: `integer` (optional, default: 15) - Number of items per page
+  * `status`: `string` (optional) - Filter by status: `draft`, `approved`, `paid_out`
 * **Request Body:** (None)
-* **Response Body (200 OK):** Array of SHU distribution objects.
+* **Response Body (200 OK):** Paginated array of SHU distribution objects.
   ```json
-  [
-      {
-          "id": "integer",
-          "fiscal_year": "integer",
-          "total_shu_amount": "decimal",
-          "distribution_date": "YYYY-MM-DD",
-          "notes": "string",
-          "created_at": "timestamp",
-          "updated_at": "timestamp"
-      }
-  ]
+  {
+      "current_page": 1,
+      "data": [
+          {
+              "id": "string (CUID)",
+              "fiscal_year": 2025,
+              "total_shu_amount": "100000000.00",
+              "cadangan_amount": "30000000.00",
+              "jasa_modal_amount": "28000000.00",
+              "jasa_usaha_amount": "42000000.00",
+              "distribution_date": "2026-01-15",
+              "status": "draft",
+              "approved_at": null,
+              "approved_by": null,
+              "notes": "SHU Tahun 2025",
+              "total_members": 150,
+              "paid_members": 0,
+              "payment_progress": 0,
+              "total_paid_out": "0.00",
+              "total_unpaid": "70000000.00"
+          }
+      ],
+      "total": 5,
+      "per_page": 15,
+      "last_page": 1
+  }
   ```
 
-### 27. Get SHU Distribution by ID
+### 27. Get SHU Distribution by ID (Enhanced)
 
 * **Endpoint:** `GET /shu-distributions/{id}`
-* **Description:** Retrieves details of a specific SHU distribution by its ID.
+* **Description:** Retrieves detailed information of a specific SHU distribution including allocations and summary.
 * **Authentication:** Required (Bearer Token)
 * **Path Parameters:**
-  * `id`: `integer` (The ID of the SHU distribution)
+  * `id`: `string` (CUID - The ID of the SHU distribution)
 * **Request Body:** (None)
-* **Response Body (200 OK):** SHU distribution object.
+* **Response Body (200 OK):**
+  ```json
+  {
+      "data": {
+          "id": "cm3abc123",
+          "fiscal_year": 2025,
+          "total_shu_amount": "100000000.00",
+          "cadangan_amount": "30000000.00",
+          "jasa_modal_amount": "28000000.00",
+          "jasa_usaha_amount": "42000000.00",
+          "distribution_date": "2026-01-15",
+          "status": "draft",
+          "approved_at": null,
+          "approved_by": null,
+          "notes": "SHU Tahun 2025",
+          "allocations": [
+              {
+                  "id": "cm3xyz789",
+                  "member_id": "cm3member1",
+                  "member": {
+                      "id": "cm3member1",
+                      "full_name": "John Doe",
+                      "member_number": "001"
+                  },
+                  "jasa_modal_amount": "560000.00",
+                  "jasa_usaha_amount": "1050000.00",
+                  "amount_allocated": "1610000.00",
+                  "is_paid_out": false,
+                  "paid_out_at": null
+              }
+          ]
+      },
+      "summary": {
+          "distribution_id": "cm3abc123",
+          "fiscal_year": 2025,
+          "status": "draft",
+          "total_shu": "100000000.00",
+          "cadangan": "30000000.00",
+          "jasa_modal": "28000000.00",
+          "jasa_usaha": "42000000.00",
+          "members_count": 150,
+          "paid_members": 0,
+          "unpaid_members": 150,
+          "payment_progress": 0
+      }
+  }
+  ```
 
-### 28. Create New SHU Distribution
+### 28. Create New SHU Distribution (Enhanced - Step 1)
 
 * **Endpoint:** `POST /shu-distributions`
-* **Description:** Creates a new SHU distribution.
+* **Description:** Creates a new SHU distribution with automatic calculation of cadangan, jasa modal, and jasa usaha based on standard percentages.
 * **Authentication:** Required (Bearer Token)
 * **Request Body:**
   ```json
   {
-      "fiscal_year": "integer (required, unique)",
-      "total_shu_amount": "decimal (required, min:0)",
-      "distribution_date": "YYYY-MM-DD (required)",
-      "notes": "string (optional)"
+      "fiscal_year": 2025,
+      "total_shu_amount": 100000000,
+      "distribution_date": "2026-01-15",
+      "notes": "SHU Tahun 2025"
   }
   ```
-* **Response Body (201 Created):** New SHU distribution object.
+* **Response Body (201 Created):**
+  ```json
+  {
+      "message": "SHU Distribution created successfully",
+      "data": {
+          "id": "cm3abc123",
+          "fiscal_year": 2025,
+          "total_shu_amount": "100000000.00",
+          "cadangan_amount": "30000000.00",
+          "jasa_modal_amount": "28000000.00",
+          "jasa_usaha_amount": "42000000.00",
+          "status": "draft",
+          "distribution_date": "2026-01-15",
+          "notes": "SHU Tahun 2025"
+      },
+      "breakdown": {
+          "total_shu": 100000000,
+          "cadangan_amount": 30000000,
+          "anggota_amount": 70000000,
+          "jasa_modal_amount": 28000000,
+          "jasa_usaha_amount": 42000000,
+          "percentages": {
+              "cadangan": 30,
+              "anggota": 70,
+              "jasa_modal": 40,
+              "jasa_usaha": 60
+          }
+      }
+  }
+  ```
 
-### 29. Update SHU Distribution
+### 28a. Calculate Member Allocations (NEW - Step 2)
+
+* **Endpoint:** `POST /shu-distributions/{id}/calculate`
+* **Description:** Calculates SHU allocations for all members based on their savings (jasa modal) and transactions (jasa usaha) for the fiscal year.
+* **Authentication:** Required (Bearer Token)
+* **Path Parameters:**
+  * `id`: `string` (CUID - The ID of the SHU distribution)
+* **Request Body:** (None)
+* **Response Body (200 OK):**
+  ```json
+  {
+      "message": "Allocations calculated and saved successfully",
+      "data": { ... }, // Full distribution with allocations
+      "summary": { ... }, // Summary stats
+      "allocations": [
+          {
+              "member_id": "cm3member1",
+              "member_name": "John Doe",
+              "member_number": "001",
+              "member_savings": "10000000.00",
+              "member_transactions": "50000000.00",
+              "jasa_modal_proportion": 2.0,
+              "jasa_usaha_proportion": 2.5,
+              "jasa_modal_amount": "560000.00",
+              "jasa_usaha_amount": "1050000.00",
+              "amount_allocated": "1610000.00"
+          }
+      ]
+  }
+  ```
+
+### 28b. Get Allocations for Distribution (NEW)
+
+* **Endpoint:** `GET /shu-distributions/{id}/allocations`
+* **Description:** Retrieves all member allocations for a specific distribution with pagination and filters.
+* **Authentication:** Required (Bearer Token)
+* **Path Parameters:**
+  * `id`: `string` (CUID - The ID of the SHU distribution)
+* **Query Parameters:**
+  * `per_page`: `integer` (optional) - Number of items per page
+  * `is_paid_out`: `boolean` (optional) - Filter by payment status (`true`, `false`)
+* **Request Body:** (None)
+* **Response Body (200 OK):**
+  ```json
+  {
+      "current_page": 1,
+      "data": [
+          {
+              "id": "cm3xyz789",
+              "member_id": "cm3member1",
+              "member": {
+                  "id": "cm3member1",
+                  "full_name": "John Doe",
+                  "member_number": "001"
+              },
+              "jasa_modal_amount": "560000.00",
+              "jasa_usaha_amount": "1050000.00",
+              "amount_allocated": "1610000.00",
+              "is_paid_out": false,
+              "payout_transaction_id": null,
+              "paid_out_at": null
+          }
+      ],
+      "total": 150,
+      "per_page": 15
+  }
+  ```
+
+### 28c. Approve Distribution (NEW - Step 3)
+
+* **Endpoint:** `POST /shu-distributions/{id}/approve`
+* **Description:** Approves a draft SHU distribution, allowing it to proceed to payout.
+* **Authentication:** Required (Bearer Token)
+* **Path Parameters:**
+  * `id`: `string` (CUID - The ID of the SHU distribution)
+* **Request Body:**
+  ```json
+  {
+      "approved_by": "cm3admin123"
+  }
+  ```
+* **Response Body (200 OK):**
+  ```json
+  {
+      "message": "SHU Distribution approved successfully",
+      "data": {
+          "id": "cm3abc123",
+          "status": "approved",
+          "approved_at": "2025-11-10 10:30:00",
+          "approved_by": "cm3admin123",
+          "approver": {
+              "id": "cm3admin123",
+              "full_name": "Admin User"
+          }
+      }
+  }
+  ```
+
+### 28d. Batch Payout (NEW - Step 4)
+
+* **Endpoint:** `POST /shu-distributions/{id}/payout`
+* **Description:** Processes batch payout for all unpaid members. Creates transactions and updates savings balances automatically.
+* **Authentication:** Required (Bearer Token)
+* **Path Parameters:**
+  * `id`: `string` (CUID - The ID of the SHU distribution)
+* **Request Body:** (None)
+* **Response Body (200 OK):**
+  ```json
+  {
+      "message": "Batch payout completed",
+      "paid_count": 150,
+      "paid_amount": "70000000.00",
+      "errors": [],
+      "distribution_status": "paid_out"
+  }
+  ```
+* **Note:** Distribution status automatically changes to `paid_out` when all members are paid.
+
+### 28e. Get Distribution Report (NEW)
+
+* **Endpoint:** `GET /shu-distributions/{id}/report`
+* **Description:** Generates a comprehensive report for the SHU distribution including top members, payment status, and detailed breakdown.
+* **Authentication:** Required (Bearer Token)
+* **Path Parameters:**
+  * `id`: `string` (CUID - The ID of the SHU distribution)
+* **Request Body:** (None)
+* **Response Body (200 OK):**
+  ```json
+  {
+      "summary": {
+          "distribution_id": "cm3abc123",
+          "fiscal_year": 2025,
+          "status": "paid_out",
+          "total_shu": "100000000.00",
+          "members_count": 150,
+          "payment_progress": 100
+      },
+      "top_members": [
+          {
+              "member_name": "John Doe",
+              "member_number": "001",
+              "amount_allocated": "1610000.00",
+              "jasa_modal": "560000.00",
+              "jasa_usaha": "1050000.00",
+              "is_paid_out": true
+          }
+      ],
+      "distribution_details": {
+          "total_shu": "100000000.00",
+          "cadangan": "30000000.00",
+          "for_members": "70000000.00",
+          "breakdown": {
+              "jasa_modal": "28000000.00",
+              "jasa_usaha": "42000000.00"
+          }
+      },
+      "payment_status": {
+          "paid_members": 150,
+          "unpaid_members": 0,
+          "paid_amount": "70000000.00",
+          "unpaid_amount": "0.00",
+          "progress_percentage": 100
+      }
+  }
+  ```
+
+### 29. Update SHU Distribution (Enhanced)
 
 * **Endpoint:** `PUT /shu-distributions/{id}`
-* **Description:** Updates an existing SHU distribution's details.
+* **Description:** Updates an existing SHU distribution's details. Only `draft` distributions can be updated. If `total_shu_amount` is changed, breakdown is recalculated and allocations are deleted (need recalculation).
 * **Authentication:** Required (Bearer Token)
 * **Path Parameters:**
-  * `id`: `integer` (The ID of the SHU distribution to update)
-* **Request Body:** (Partial SHU distribution object with fields to update)
-* **Response Body (200 OK):** Updated SHU distribution object.
+  * `id`: `string` (CUID - The ID of the SHU distribution to update)
+* **Request Body:**
+  ```json
+  {
+      "total_shu_amount": 105000000,
+      "distribution_date": "2026-01-20",
+      "notes": "Updated notes"
+  }
+  ```
+* **Response Body (200 OK):**
+  ```json
+  {
+      "message": "SHU Distribution updated successfully",
+      "data": { ... }
+  }
+  ```
+* **Error Response (422):**
+  ```json
+  {
+      "error": "Only draft distributions can be updated"
+  }
+  ```
 
-### 30. Delete SHU Distribution
+### 30. Delete SHU Distribution (Enhanced)
 
 * **Endpoint:** `DELETE /shu-distributions/{id}`
-* **Description:** Deletes an existing SHU distribution.
+* **Description:** Deletes an existing SHU distribution and all its allocations. Only `draft` distributions can be deleted.
 * **Authentication:** Required (Bearer Token)
 * **Path Parameters:**
-  * `id`: `integer` (The ID of the SHU distribution to delete)
+  * `id`: `string` (CUID - The ID of the SHU distribution to delete)
 * **Request Body:** (None)
 * **Response Body (200 OK):**
   ```json
@@ -629,6 +909,41 @@ This response is returned when validation fails for a `POST` or `PUT` request.
       "message": "SHU distribution deleted successfully"
   }
   ```
+* **Error Response (422):**
+  ```json
+  {
+      "error": "Only draft distributions can be deleted"
+  }
+  ```
+
+---
+
+### SHU Distribution Workflow
+
+```
+1. CREATE (Draft)
+   POST /shu-distributions
+   → Auto-calculate breakdown (cadangan, jasa modal, jasa usaha)
+   
+2. CALCULATE ALLOCATIONS
+   POST /shu-distributions/{id}/calculate
+   → Calculate per member based on savings & transactions
+   
+3. APPROVE
+   POST /shu-distributions/{id}/approve
+   → Status: draft → approved
+   
+4. BATCH PAYOUT
+   POST /shu-distributions/{id}/payout
+   → Create transactions, update balances
+   → Status: approved → paid_out (when all paid)
+   
+5. REPORT
+   GET /shu-distributions/{id}/report
+   → View comprehensive statistics
+```
+
+---
 
 ## SHU Member Allocations
 

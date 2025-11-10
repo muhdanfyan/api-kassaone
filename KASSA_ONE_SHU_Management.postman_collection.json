@@ -1,0 +1,342 @@
+{
+  "info": {
+    "name": "KASSA ONE - SHU Management",
+    "description": "Complete API collection for SHU (Sisa Hasil Usaha) Management",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "login"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. SHU Distribution - CRUD",
+      "item": [
+        {
+          "name": "Get All Distributions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/shu-distributions?per_page=15&status=draft",
+              "host": ["{{base_url}}"],
+              "path": ["api", "shu-distributions"],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15"
+                },
+                {
+                  "key": "status",
+                  "value": "draft",
+                  "description": "draft, approved, paid_out"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Distribution by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/shu-distributions/{{distribution_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "shu-distributions", "{{distribution_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Distribution",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"distribution_id\", jsonData.data.id);",
+                  "    console.log(\"Distribution ID saved: \" + jsonData.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fiscal_year\": 2025,\n  \"total_shu_amount\": 100000000,\n  \"distribution_date\": \"2026-01-15\",\n  \"notes\": \"Test SHU Distribution 2025\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/shu-distributions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "shu-distributions"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Distribution",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"total_shu_amount\": 105000000,\n  \"distribution_date\": \"2026-01-20\",\n  \"notes\": \"Updated notes\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/shu-distributions/{{distribution_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "shu-distributions", "{{distribution_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Distribution",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/shu-distributions/{{distribution_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "shu-distributions", "{{distribution_id}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. SHU Workflow",
+      "item": [
+        {
+          "name": "Step 2: Calculate Allocations",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/shu-distributions/{{distribution_id}}/calculate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "shu-distributions", "{{distribution_id}}", "calculate"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Step 3: Approve Distribution",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approved_by\": \"{{admin_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/shu-distributions/{{distribution_id}}/approve",
+              "host": ["{{base_url}}"],
+              "path": ["api", "shu-distributions", "{{distribution_id}}", "approve"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Step 4: Batch Payout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/shu-distributions/{{distribution_id}}/payout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "shu-distributions", "{{distribution_id}}", "payout"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Allocations",
+      "item": [
+        {
+          "name": "Get All Allocations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/shu-distributions/{{distribution_id}}/allocations?per_page=15&is_paid_out=false",
+              "host": ["{{base_url}}"],
+              "path": ["api", "shu-distributions", "{{distribution_id}}", "allocations"],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15"
+                },
+                {
+                  "key": "is_paid_out",
+                  "value": "false",
+                  "description": "true/false"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Paid Allocations Only",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/shu-distributions/{{distribution_id}}/allocations?is_paid_out=true",
+              "host": ["{{base_url}}"],
+              "path": ["api", "shu-distributions", "{{distribution_id}}", "allocations"],
+              "query": [
+                {
+                  "key": "is_paid_out",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Reporting",
+      "item": [
+        {
+          "name": "Get Distribution Report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/shu-distributions/{{distribution_id}}/report",
+              "host": ["{{base_url}}"],
+              "path": ["api", "shu-distributions", "{{distribution_id}}", "report"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "distribution_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
