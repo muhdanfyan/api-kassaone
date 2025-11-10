@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\Member;
 use App\Models\Role;
 use App\Models\CsrfToken;
+use App\Models\SystemSetting;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -91,6 +92,9 @@ class AuthController extends Controller
             $selfieWithKtpPath = $request->file('selfie_with_ktp')->store('members/selfie', 'public');
         }
 
+        // Get Simpanan Pokok amount from system settings
+        $simpananPokokAmount = SystemSetting::get('simpanan_pokok_amount', 1000000);
+
         $member = Member::create([
             'full_name' => $request->full_name,
             'member_id_number' => $memberIdNumber,
@@ -107,11 +111,14 @@ class AuthController extends Controller
             'member_type' => $request->member_type ?? 'Biasa',
             'role_id' => $roleId,
             'verification_status' => Member::VERIFICATION_PENDING, // Set pending, need payment
-            'payment_amount' => 1000000, // Default Rp 1.000.000 for Simpanan Pokok
+            'payment_amount' => $simpananPokokAmount, // Get from system settings
         ]);
 
+        // Format amount for message
+        $formattedAmount = 'Rp ' . number_format($simpananPokokAmount, 0, ',', '.');
+
         return response()->json([
-            'message' => 'Pendaftaran berhasil! Silakan login dan upload bukti pembayaran Simpanan Pokok sebesar Rp 1.000.000',
+            'message' => "Pendaftaran berhasil! Silakan login dan upload bukti pembayaran Simpanan Pokok sebesar {$formattedAmount}",
             'user' => [
                 'username' => $member->username,
                 'full_name' => $member->full_name,

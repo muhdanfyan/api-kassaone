@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\ShuDistributionController;
 use App\Http\Controllers\Api\ShuMemberAllocationController;
 use App\Http\Controllers\Api\TestimonialController;
 use App\Http\Controllers\Api\OrganizationController;
+use App\Http\Controllers\Api\SettingsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -73,6 +74,9 @@ Route::middleware(['auth:api'])->group(function () {
     // Organization Management
     Route::get('/organization', [OrganizationController::class, 'index']);
     Route::get('/roles', [OrganizationController::class, 'getRoles']);
+    
+    // System Settings
+    Route::get('/settings', [SettingsController::class, 'index']);
 });
 
 // Routes that require both JWT authentication AND CSRF token (POST, PUT, PATCH, DELETE)
@@ -124,4 +128,7 @@ Route::middleware(['auth:api', \App\Http\Middleware\ValidateCsrfToken::class])->
     
     // Organization Management
     Route::put('/members/{member}/position', [OrganizationController::class, 'updatePosition']);
+    
+    // System Settings (Admin only)
+    Route::put('/settings', [SettingsController::class, 'update']);
 });
