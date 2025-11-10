@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ShuPercentageSetting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -88,7 +89,7 @@ class ShuPercentageSettingController extends Controller
             }
 
             $setting = ShuPercentageSetting::create(array_merge($validated, [
-                'created_by' => auth()->user()->member_id,
+                'created_by' => Auth::user()->member->id,
             ]));
 
             DB::commit();
@@ -96,7 +97,7 @@ class ShuPercentageSettingController extends Controller
             Log::info('SHU Percentage Setting created', [
                 'setting_id' => $setting->id,
                 'fiscal_year' => $setting->fiscal_year,
-                'created_by' => auth()->user()->member_id,
+                'created_by' => Auth::user()->member->id,
             ]);
 
             return response()->json([
@@ -201,7 +202,7 @@ class ShuPercentageSettingController extends Controller
 
             Log::info('SHU Percentage Setting updated', [
                 'setting_id' => $setting->id,
-                'updated_by' => auth()->user()->member_id,
+                'updated_by' => Auth::user()->member->id,
             ]);
 
             return response()->json([
@@ -304,7 +305,7 @@ class ShuPercentageSettingController extends Controller
 
             Log::info('SHU Percentage Setting deleted', [
                 'setting_id' => $id,
-                'deleted_by' => auth()->user()->member_id,
+                'deleted_by' => Auth::user()->member->id,
             ]);
 
             return response()->json([
