@@ -17,6 +17,10 @@ use App\Http\Controllers\Api\OrganizationController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\SHUDistributionController;
 use App\Http\Controllers\ShuPercentageSettingController;
+use App\Http\Controllers\Auth\ForgotPasswordController;
+use App\Http\Controllers\Admin\PasswordResetRequestController;
+use App\Http\Controllers\Member\RegistrationController;
+use App\Http\Controllers\ValidationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -34,11 +38,25 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/public/upload-payment-proof', [AuthController::class, 'uploadPaymentProofPublic']);
 
+// Unique Validation Routes (Public - for real-time validation during registration)
+Route::post('/check-unique', [ValidationController::class, 'checkUnique']);
+
+// Password Reset - Public routes (grouped under /auth prefix)
+Route::prefix('auth')->group(function () {
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'requestReset']);
+});
+
+Route::post('/member/complete-registration', [RegistrationController::class, 'completeRegistration']);
+Route::post('/member/set-password', [RegistrationController::class, 'setPassword']);
+
 // Routes for pending members (requires JWT but allows pending status)
 Route::middleware(['auth:api'])->group(function () {
     // Allow pending members to upload payment proof
     Route::post('/member/upload-payment-proof', [AuthController::class, 'uploadPaymentProof']);
     Route::get('/member/status', [AuthController::class, 'getMemberStatus']);
+    
+    // Password Management - Member Routes
+    Route::post('/member/change-password', [MemberController::class, 'changePassword']);
 });
 
 // Routes that require JWT authentication only (GET requests)
@@ -106,6 +124,11 @@ Route::middleware(['auth:api', \App\Http\Middleware\ValidateCsrfToken::class])->
     // Payment Approval (Admin only)
     Route::post('/members/{member}/approve-payment', [MemberController::class, 'approvePayment']);
     Route::post('/members/{member}/reject-payment', [MemberController::class, 'rejectPayment']);
+    
+    // Password Reset Management (Admin only)
+    Route::get('/admin/password-reset-requests', [PasswordResetRequestController::class, 'index']);
+    Route::post('/admin/password-reset-requests/{id}/reset', [PasswordResetRequestController::class, 'reset']);
+    Route::post('/admin/password-reset-requests/{id}/reject', [PasswordResetRequestController::class, 'reject']);
     
     // Member Profile Updates (for pending members)
     Route::put('/members/{member}/personal-info', [MemberController::class, 'updatePersonalInfo']);

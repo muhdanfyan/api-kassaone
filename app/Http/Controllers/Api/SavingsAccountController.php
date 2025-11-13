@@ -12,7 +12,25 @@ class SavingsAccountController extends Controller
 {
     public function index(Member $member)
     {
-        $accounts = $member->savingsAccounts()->with('member')->get();
+        // Ensure all 3 account types exist
+        $accountTypes = ['pokok', 'wajib', 'sukarela'];
+        $accounts = [];
+        
+        foreach ($accountTypes as $type) {
+            $account = $member->savingsAccounts()->where('account_type', $type)->first();
+            
+            if ($account) {
+                $accounts[] = $account;
+            } else {
+                // Create missing account with 0 balance
+                $newAccount = $member->savingsAccounts()->create([
+                    'account_type' => $type,
+                    'balance' => 0,
+                ]);
+                $accounts[] = $newAccount;
+            }
+        }
+        
         return response()->json($accounts);
     }
 

@@ -7,44 +7,66 @@ use Illuminate\Http\Request;
 use App\Models\Member;
 use App\Models\Role;
 use App\Models\SavingsAccount;
+use App\Models\SystemSetting;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
+use App\Mail\MemberCredentialsEmail;
 
 class MemberController extends Controller
 {
+    /**
+     * Get all members
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index()
     {
         $members = Member::with('role')->get();
         return response()->json($members);
     }
 
+    /**
+     * Get a specific member
+     * 
+     * @param \App\Models\Member $member
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function show(Member $member)
     {
         $member->load('role');
         return response()->json($member);
     }
 
+    /**
+     * Store a newly created member
+     * 
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $request->validate([
             'full_name' => 'required|string|max:255',
             'member_id_number' => 'nullable|string|max:100|unique:members',
-            'username' => 'required|string|max:100|unique:members',
-            'email' => 'nullable|string|email|max:255|unique:members',
-            'phone_number' => 'nullable|string|max:50',
-            'address' => 'nullable|string',
-            'join_date' => 'required|date',
-            'password' => 'required|string|min:8|confirmed',
+            'username' => 'required|string|min:3|max:50|unique:members',
+            'email' => 'nullable|email|max:255|unique:members',
+            'phone_number' => 'nullable|string|min:10|max:13|unique:members',
+            'nik' => 'required|string|size:16|regex:/^[0-9]+$/|unique:members',
+            'address' => 'nullable|string|max:500',
+            'join_date' => 'required|date|before_or_equal:today',
             'member_type' => 'required|' . Member::memberTypeRule(),
+            'password' => 'required|string|min:8|confirmed',
             'status' => 'nullable|in:Aktif,Tidak Aktif,Ditangguhkan',
             'role_id' => 'nullable|exists:roles,id',
-            'nik' => 'nullable|string|max:16',
             'ktp_scan' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'selfie_with_ktp' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'send_email_notification' => 'boolean',
+            'send_whatsapp_notification' => 'boolean',
         ]);
 
         // Auto-generate member_id_number if not provided
@@ -52,28 +74,29 @@ class MemberController extends Controller
         if (empty($memberIdNumber)) {
             // Determine prefix based on member_type
             $prefix = match($request->member_type) {
-                'Pendiri' => 'PENDIRI',
-                'Biasa' => 'BIASA',
-                'Calon' => 'CALON',
-                'Kehormatan' => 'HORMATAN',
-                default => 'MEMBER',
+                'Pendiri' => 'P',
+                'Biasa' => 'B',
+                'Calon' => 'C',
+                'Kehormatan' => 'K',
+                default => 'M',
             };
             
             // Get the last member with same prefix
-            $lastMember = Member::where('member_id_number', 'like', $prefix . '%')
+            $lastMember = Member::where('member_id_number', 'like', $prefix . '-%')
                 ->orderBy('member_id_number', 'desc')
                 ->first();
             
             if ($lastMember && $lastMember->member_id_number) {
-                // Extract number from PENDIRI-001 -> 001
-                $lastNumber = (int) substr($lastMember->member_id_number, strlen($prefix) + 1);
+                // Extract number from P-00001 -> 1
+                $parts = explode('-', $lastMember->member_id_number);
+                $lastNumber = isset($parts[1]) ? (int) $parts[1] : 0;
                 $nextNumber = $lastNumber + 1;
             } else {
                 // No members with this prefix yet, start from 1
                 $nextNumber = 1;
             }
             
-            $memberIdNumber = $prefix . '-' . str_pad((string) $nextNumber, 3, '0', STR_PAD_LEFT);
+            $memberIdNumber = $prefix . '-' . str_pad((string) $nextNumber, 5, '0', STR_PAD_LEFT);
         }
 
         // Auto-set role to 'Anggota' if not provided
@@ -94,29 +117,67 @@ class MemberController extends Controller
         if ($request->hasFile('selfie_with_ktp')) {
             $selfieWithKtpPath = $request->file('selfie_with_ktp')->store('member_documents', 'public');
         }
-
+        
         $member = Member::create([
             'full_name' => $request->full_name,
             'member_id_number' => $memberIdNumber,
             'username' => $request->username,
             'email' => $request->email,
             'phone_number' => $request->phone_number,
+            'nik' => $request->nik,
             'address' => $request->address,
             'join_date' => $request->join_date,
             'password' => Hash::make($request->password),
             'member_type' => $request->member_type,
             'status' => $request->status ?? 'Aktif',
+            'verification_status' => Member::VERIFICATION_PENDING, // IMPORTANT: Set to pending
             'role_id' => $roleId,
-            'nik' => $request->nik,
             'ktp_scan' => $ktpScanPath,
             'selfie_with_ktp' => $selfieWithKtpPath,
         ]);
 
         $member->load('role');
+        
+        // Send email notification if requested
+        if ($request->send_email_notification && $member->email) {
+            try {
+                Mail::to($member->email)->send(
+                    new \App\Mail\MemberCreatedByAdmin($member, $request->password)
+                );
+                Log::info("Email notification sent to member: {$member->username}");
+            } catch (\Exception $e) {
+                Log::error('Failed to send member credentials email: ' . $e->getMessage());
+            }
+        }
+        
+        // Send WhatsApp notification if requested
+        if ($request->send_whatsapp_notification && $member->phone_number) {
+            try {
+                \App\Services\WhatsAppService::send($member->phone_number, [
+                    'name' => $member->full_name,
+                    'username' => $member->username,
+                    'password' => $request->password,
+                    'login_url' => config('app.frontend_url') . '/login',
+                ]);
+                Log::info("WhatsApp notification sent to member: {$member->username}");
+            } catch (\Exception $e) {
+                Log::error('Failed to send WhatsApp notification: ' . $e->getMessage());
+            }
+        }
 
-        return response()->json($member, 201);
+        return response()->json([
+            'message' => 'Member berhasil dibuat',
+            'member' => $member,
+        ], 201);
     }
 
+    /**
+     * Update an existing member
+     * 
+     * @param \Illuminate\Http\Request $request
+     * @param \App\Models\Member $member
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, Member $member)
     {
         $request->validate([
@@ -145,6 +206,12 @@ class MemberController extends Controller
         return response()->json($member);
     }
 
+    /**
+     * Delete a member
+     * 
+     * @param \App\Models\Member $member
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy(Member $member)
     {
         $member->delete();
@@ -153,6 +220,8 @@ class MemberController extends Controller
 
     /**
      * Get available member types for dropdown
+     * 
+     * @return \Illuminate\Http\JsonResponse
      */
     public function getMemberTypes()
     {
@@ -164,6 +233,9 @@ class MemberController extends Controller
     /**
      * Get members by verification status (untuk admin)
      * Filter member berdasarkan status: pending, payment_pending, verified, rejected
+     * 
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function getByVerificationStatus(Request $request)
     {
@@ -195,10 +267,14 @@ class MemberController extends Controller
     /**
      * Approve member payment (admin only)
      * Ubah status dari payment_pending ke verified
-     * Dan otomatis buat Simpanan Pokok
+     * Dan otomatis buat 3 Savings Accounts terpisah
+     * 
+     * @param string $memberId
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function approvePayment($memberId)
+    public function approvePayment(string $memberId)
     {
+        /** @var \App\Models\Member $member */
         $member = Member::findOrFail($memberId);
         
         if ($member->verification_status !== Member::VERIFICATION_PAYMENT_PENDING) {
@@ -217,37 +293,19 @@ class MemberController extends Controller
                 'payment_verified_by' => Auth::id(), // ID admin yang approve
             ]);
             
-            // Create or get Simpanan Pokok account
-            $simpananPokok = SavingsAccount::firstOrCreate(
-                [
-                    'member_id' => $member->id,
-                    'account_type' => 'pokok',
-                ],
-                [
-                    'balance' => 0,
-                ]
-            );
+            // Get Simpanan Pokok amount from system settings
+            /** @var int $simpananPokokAmount */
+            $simpananPokokAmount = (int) SystemSetting::get('simpanan_pokok_amount', 1000000);
             
-            // Create transaction for Simpanan Pokok
-            $transaction = Transaction::create([
-                'savings_account_id' => $simpananPokok->id,
-                'member_id' => $member->id,
-                'transaction_type' => 'deposit',
-                'amount' => $member->payment_amount,
-                'description' => 'Simpanan Pokok dari pembayaran pendaftaran',
-                'transaction_date' => now(),
-            ]);
-            
-            // Update balance
-            $simpananPokok->increment('balance', $member->payment_amount);
+            // Create 3 separate savings accounts
+            $accounts = $this->createInitialSavingsAccounts($member, $simpananPokokAmount);
             
             DB::commit();
             
             return response()->json([
-                'message' => 'Pembayaran berhasil diverifikasi dan Simpanan Pokok telah dicatat.',
+                'message' => 'Pembayaran berhasil diverifikasi dan Savings Accounts telah dibuat.',
                 'member' => $member->load('role'),
-                'simpanan_pokok' => $simpananPokok->fresh(),
-                'transaction' => $transaction,
+                'savings_accounts' => $accounts,
             ]);
             
         } catch (\Exception $e) {
@@ -260,17 +318,85 @@ class MemberController extends Controller
             ], 500);
         }
     }
+    
+    /**
+     * Create initial savings accounts for verified member
+     * Creates 3 separate accounts: pokok, wajib, sukarela
+     * 
+     * @param \App\Models\Member $member
+     * @param float|int $simpananPokokAmount
+     * @return array<string, \App\Models\SavingsAccount>
+     */
+    private function createInitialSavingsAccounts(Member $member, float|int $simpananPokokAmount): array
+    {
+        $accounts = [];
+        
+        // 1. Simpanan Pokok (one-time, from settings)
+        $simpananPokok = SavingsAccount::create([
+            'member_id' => $member->id,
+            'account_type' => 'pokok',
+            'balance' => $simpananPokokAmount,
+        ]);
+        
+        Transaction::create([
+            'savings_account_id' => $simpananPokok->id,
+            'member_id' => $member->id,
+            'transaction_type' => 'deposit',
+            'amount' => $simpananPokokAmount,
+            'description' => 'Simpanan Pokok dari pembayaran pendaftaran',
+            'transaction_date' => now(),
+        ]);
+        
+        $accounts['pokok'] = $simpananPokok;
+        
+        // 2. Simpanan Wajib (first month, from member selection)
+        $simpananWajibAmount = $member->monthly_savings_amount ?? 0;
+        $simpananWajib = SavingsAccount::create([
+            'member_id' => $member->id,
+            'account_type' => 'wajib',
+            'balance' => $simpananWajibAmount,
+        ]);
+        
+        if ($simpananWajibAmount > 0) {
+            Transaction::create([
+                'savings_account_id' => $simpananWajib->id,
+                'member_id' => $member->id,
+                'transaction_type' => 'deposit',
+                'amount' => $simpananWajibAmount,
+                'description' => 'Simpanan Wajib bulan pertama dari pembayaran pendaftaran',
+                'transaction_date' => now(),
+            ]);
+        }
+        
+        $accounts['wajib'] = $simpananWajib;
+        
+        // 3. Simpanan Sukarela (initial 0)
+        $simpananSukarela = SavingsAccount::create([
+            'member_id' => $member->id,
+            'account_type' => 'sukarela',
+            'balance' => 0,
+        ]);
+        
+        $accounts['sukarela'] = $simpananSukarela;
+        
+        return $accounts;
+    }
 
     /**
      * Reject member payment (admin only)
      * Ubah status dari payment_pending ke rejected dengan alasan
+     * 
+     * @param \Illuminate\Http\Request $request
+     * @param string $memberId
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function rejectPayment(Request $request, $memberId)
+    public function rejectPayment(Request $request, string $memberId)
     {
         $request->validate([
             'rejected_reason' => 'required|string|max:500',
         ]);
         
+        /** @var \App\Models\Member $member */
         $member = Member::findOrFail($memberId);
         
         if ($member->verification_status !== Member::VERIFICATION_PAYMENT_PENDING) {
@@ -301,6 +427,8 @@ class MemberController extends Controller
     /**
      * Get payment statistics
      * Untuk dashboard admin
+     * 
+     * @return \Illuminate\Http\JsonResponse
      */
     public function getPaymentStats()
     {
@@ -330,6 +458,8 @@ class MemberController extends Controller
     /**
      * Get Simpanan Pokok statistics
      * Untuk dashboard admin
+     * 
+     * @return \Illuminate\Http\JsonResponse
      */
     public function getSimpananPokokStats()
     {
@@ -362,6 +492,8 @@ class MemberController extends Controller
     /**
      * Migrate old verified members to have Simpanan Pokok
      * For members created before auto-create feature was implemented
+     * 
+     * @return \Illuminate\Http\JsonResponse
      */
     public function migrateOldMembersSimpananPokok()
     {
@@ -423,6 +555,10 @@ class MemberController extends Controller
 
     /**
      * Update member personal information
+     * 
+     * @param \Illuminate\Http\Request $request
+     * @param \App\Models\Member $member
+     * @return \Illuminate\Http\JsonResponse
      */
     public function updatePersonalInfo(Request $request, Member $member)
     {
@@ -456,6 +592,10 @@ class MemberController extends Controller
 
     /**
      * Update member heir information
+     * 
+     * @param \Illuminate\Http\Request $request
+     * @param \App\Models\Member $member
+     * @return \Illuminate\Http\JsonResponse
      */
     public function updateHeirInfo(Request $request, Member $member)
     {
@@ -481,6 +621,10 @@ class MemberController extends Controller
 
     /**
      * Update member monthly savings amount
+     * 
+     * @param \Illuminate\Http\Request $request
+     * @param \App\Models\Member $member
+     * @return \Illuminate\Http\JsonResponse
      */
     public function updateMonthlySavings(Request $request, Member $member)
     {
@@ -489,7 +633,10 @@ class MemberController extends Controller
         ]);
 
         $monthlySavingsAmount = $request->monthly_savings_amount;
-        $simpananPokok = 500000; // Fixed Simpanan Pokok amount
+        
+        // ✅ Get Simpanan Pokok amount from system settings
+        $simpananPokok = (int) SystemSetting::get('simpanan_pokok_amount', 1000000);
+        
         $totalPaymentAmount = $simpananPokok + $monthlySavingsAmount;
 
         $member->update([
@@ -502,9 +649,70 @@ class MemberController extends Controller
             'member' => $member->fresh(),
             'payment_breakdown' => [
                 'simpanan_pokok' => $simpananPokok,
-                'simpanan_wajib_pertama' => $monthlySavingsAmount,
+                'simpanan_wajib_pertama' => (int) $monthlySavingsAmount,
                 'total' => $totalPaymentAmount,
             ],
         ]);
+    }
+    
+    /**
+     * Member change password (self-service)
+     * 
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required|string',
+            'new_password' => 'required|string|min:8|different:current_password',
+            'new_password_confirmation' => 'required|same:new_password',
+        ]);
+        
+        /** @var \App\Models\Member|null $member */
+        $member = Auth::user()->member;
+        
+        if (!$member) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Member tidak ditemukan.',
+            ], 404);
+        }
+        
+        // Verify current password
+        if (!Hash::check($request->current_password, $member->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Password lama tidak sesuai.',
+            ], 422);
+        }
+        
+        try {
+            $member->update([
+                'password' => Hash::make($request->new_password),
+                'password_changed_at' => now(),
+            ]);
+            
+            Log::info('Member changed password', [
+                'member_id' => $member->id,
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Password berhasil diubah.',
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to change password', [
+                'member_id' => $member->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengubah password.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }
