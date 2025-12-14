@@ -18,6 +18,41 @@ use Tymon\JWTAuth\Exceptions\JWTException;
 
 class AuthController extends Controller
 {
+    /**
+     * Generate username from full name
+     * Format: NAMAPERTAMA-NAMAKEDUA-KASSA0001
+     */
+    private function generateUsername($fullName)
+    {
+        // Split name and get first two words
+        $nameParts = array_filter(explode(' ', trim($fullName)));
+        $firstName = strtoupper($nameParts[0] ?? '');
+        $secondName = strtoupper($nameParts[1] ?? '');
+        
+        // Create name prefix (if only 1 word, use 1 word only)
+        $namePrefix = $secondName ? $firstName . $secondName : $firstName;
+        
+        // Remove special characters from name prefix
+        $namePrefix = preg_replace('/[^A-Z0-9]/', '', $namePrefix);
+        
+        // Get next number based on existing KASSA usernames
+        $memberCount = Member::where('username', 'LIKE', '%-KASSA%')->count();
+        $nextNumber = str_pad($memberCount + 1, 4, '0', STR_PAD_LEFT);
+        
+        // Build username
+        $username = $namePrefix . '-KASSA' . $nextNumber;
+        
+        // Handle collision - ensure uniqueness
+        $attempt = 0;
+        while (Member::where('username', $username)->exists()) {
+            $attempt++;
+            $nextNumber = str_pad($memberCount + 1 + $attempt, 4, '0', STR_PAD_LEFT);
+            $username = $namePrefix . '-KASSA' . $nextNumber;
+        }
+        
+        return $username;
+    }
+
     public function register(Request $request)
     {
         // Log incoming request data for debugging
@@ -30,7 +65,7 @@ class AuthController extends Controller
         $request->validate([
             'full_name' => 'required|string|max:255',
             'member_id_number' => 'nullable|string|max:100|unique:members',
-            'username' => 'required|string|max:100|unique:members',
+            'username' => 'nullable|string|max:100|unique:members',
             'email' => 'nullable|string|email|max:255|unique:members',
             'phone_number' => 'nullable|string|max:50',
             'address' => 'nullable|string',
@@ -80,6 +115,12 @@ class AuthController extends Controller
         // Use current date if join_date not provided
         $joinDate = $request->join_date ?? now()->format('Y-m-d');
 
+        // Generate username if not provided
+        $username = $request->username;
+        if (empty($username)) {
+            $username = $this->generateUsername($request->full_name);
+        }
+
         // Handle file uploads
         $ktpScanPath = null;
         $selfieWithKtpPath = null;
@@ -98,7 +139,7 @@ class AuthController extends Controller
         $member = Member::create([
             'full_name' => $request->full_name,
             'member_id_number' => $memberIdNumber,
-            'username' => $request->username,
+            'username' => $username,
             'email' => $request->email,
             'phone_number' => $request->phone_number,
             'address' => $request->address,
@@ -118,11 +159,14 @@ class AuthController extends Controller
         $formattedAmount = 'Rp ' . number_format($simpananPokokAmount, 0, ',', '.');
 
         return response()->json([
+            'success' => true,
             'message' => "Pendaftaran berhasil! Silakan login dan upload bukti pembayaran Simpanan Pokok sebesar {$formattedAmount}",
-            'user' => [
+            'data' => [
                 'username' => $member->username,
                 'full_name' => $member->full_name,
                 'member_id_number' => $member->member_id_number,
+                'email' => $member->email,
+                'status' => $member->status,
             ],
         ], 201);
     }

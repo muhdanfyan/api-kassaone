@@ -15,6 +15,9 @@ use App\Http\Controllers\Api\ShuMemberAllocationController;
 use App\Http\Controllers\Api\TestimonialController;
 use App\Http\Controllers\Api\OrganizationController;
 use App\Http\Controllers\Api\SettingsController;
+use App\Http\Controllers\Api\AccountController;
+use App\Http\Controllers\Api\ExpenseController;
+use App\Http\Controllers\Api\FinanceController;
 use App\Http\Controllers\SHUDistributionController;
 use App\Http\Controllers\ShuPercentageSettingController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
@@ -68,7 +71,16 @@ Route::middleware(['auth:api'])->group(function () {
     // GET routes - only JWT required
     Route::get('/general-transactions', [GeneralTransactionController::class, 'index']);
     Route::get('/general-transactions/chart', [GeneralTransactionController::class, 'chart']);
+    
+    // Dashboard endpoints
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
+    Route::get('/dashboard/membership-growth', [DashboardController::class, 'getMembershipGrowth']);
+    Route::get('/dashboard/savings-distribution', [DashboardController::class, 'getSavingsDistribution']);
+    Route::get('/dashboard/monthly-transactions', [DashboardController::class, 'getMonthlyTransactions']);
+    Route::get('/dashboard/recent-activities', [DashboardController::class, 'getRecentActivities']);
+    Route::get('/dashboard/upcoming-meetings', [DashboardController::class, 'getUpcomingMeetings']);
+    Route::get('/dashboard/shu-distribution', [DashboardController::class, 'getSHUDistribution']);
+    
     Route::get('/member-types', [MemberController::class, 'getMemberTypes']);
     Route::get('/members', [MemberController::class, 'index']);
     Route::get('/members/{member}', [MemberController::class, 'show']);
@@ -109,6 +121,20 @@ Route::middleware(['auth:api'])->group(function () {
     
     // System Settings
     Route::get('/settings', [SettingsController::class, 'index']);
+    
+    // Accounting - Accounts (GET)
+    Route::get('/accounts', [AccountController::class, 'index']);
+    
+    // Accounting - Expenses (GET)
+    Route::get('/expenses', [ExpenseController::class, 'index']);
+    
+    // Finance Dashboard (Admin & Bendahara only) - GET routes with role protection
+    Route::middleware('role:Admin,Bendahara')->prefix('finance')->group(function () {
+        Route::get('/summary', [FinanceController::class, 'getSummary']);
+        Route::get('/monthly', [FinanceController::class, 'getMonthlyData']);
+        Route::get('/transactions/recent', [FinanceController::class, 'getRecentTransactions']);
+        Route::get('/breakdown', [FinanceController::class, 'getBreakdown']);
+    });
 });
 
 // Routes that require both JWT authentication AND CSRF token (POST, PUT, PATCH, DELETE)
@@ -183,4 +209,14 @@ Route::middleware(['auth:api', \App\Http\Middleware\ValidateCsrfToken::class])->
     
     // System Settings (Admin only)
     Route::put('/settings', [SettingsController::class, 'update']);
+    
+    // Accounting - Accounts (POST, PUT, DELETE)
+    Route::post('/accounts', [AccountController::class, 'store']);
+    Route::put('/accounts/{id}', [AccountController::class, 'update']);
+    Route::delete('/accounts/{id}', [AccountController::class, 'destroy']);
+    
+    // Accounting - Expenses (POST, PUT, DELETE)
+    Route::post('/expenses', [ExpenseController::class, 'store']);
+    Route::put('/expenses/{id}', [ExpenseController::class, 'update']);
+    Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
 });

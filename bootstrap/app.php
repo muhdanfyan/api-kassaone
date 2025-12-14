@@ -12,8 +12,17 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // ✅ Enable CORS middleware untuk API
         $middleware->api(prepend: [
             \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
+        
+        // Trust proxies jika pakai load balancer
+        $middleware->trustProxies(at: '*');
+        
+        // Register custom middleware aliases
+        $middleware->alias([
+            'role' => \App\Http\Middleware\CheckRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
