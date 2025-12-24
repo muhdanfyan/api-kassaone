@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\GeneralTransactionController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\FinanceController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\SavingsAccountController;
 use App\Http\Controllers\Api\TransactionController;
@@ -68,7 +69,20 @@ Route::middleware(['auth:api'])->group(function () {
     // GET routes - only JWT required
     Route::get('/general-transactions', [GeneralTransactionController::class, 'index']);
     Route::get('/general-transactions/chart', [GeneralTransactionController::class, 'chart']);
+    // Dashboard endpoints
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
+    Route::get('/dashboard/membership-growth', [DashboardController::class, 'membershipGrowth']);
+    Route::get('/dashboard/savings-distribution', [DashboardController::class, 'savingsDistribution']);
+    Route::get('/dashboard/monthly-transactions', [DashboardController::class, 'monthlyTransactions']);
+    Route::get('/dashboard/shu-distribution', [DashboardController::class, 'shuDistribution']);
+    Route::get('/dashboard/recent-activities', [DashboardController::class, 'recentActivities']);
+    Route::get('/dashboard/upcoming-meetings', [DashboardController::class, 'upcomingMeetings']);
+    
+    // Finance endpoints
+    Route::get('/finance/summary', [FinanceController::class, 'summary']);
+    Route::get('/finance/monthly', [FinanceController::class, 'monthly']);
+    Route::get('/finance/transaction-summary', [FinanceController::class, 'transactionSummary']);
+    
     Route::get('/member-types', [MemberController::class, 'getMemberTypes']);
     Route::get('/members', [MemberController::class, 'index']);
     Route::get('/members/{member}', [MemberController::class, 'show']);
