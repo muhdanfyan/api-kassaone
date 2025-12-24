@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Models\CsrfToken;
 use App\Models\SystemSetting;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -30,7 +31,7 @@ class AuthController extends Controller
         $request->validate([
             'full_name' => 'required|string|max:255',
             'member_id_number' => 'nullable|string|max:100|unique:members',
-            'username' => 'required|string|max:100|unique:members',
+            'username' => 'nullable|string|max:100|unique:members',
             'email' => 'nullable|string|email|max:255|unique:members',
             'phone_number' => 'nullable|string|max:50',
             'address' => 'nullable|string',
@@ -95,10 +96,31 @@ class AuthController extends Controller
         // Get Simpanan Pokok amount from system settings
         $simpananPokokAmount = SystemSetting::get('simpanan_pokok_amount', 1000000);
 
+        // Generate username if not provided (format: NAMAPERTAMANAMAKEDUA-KASSA####)
+        $username = $request->username;
+        if (!$username) {
+            // Parse full name to get first and second name
+            $nameParts = preg_split('/\s+/', trim($request->full_name));
+            $firstName = strtoupper($nameParts[0] ?? '');
+            $secondName = strtoupper($nameParts[1] ?? '');
+            
+            // Combine first + second name (or just first if no second)
+            $namePrefix = $secondName ? $firstName . $secondName : $firstName;
+            // Remove non-alphanumeric characters
+            $namePrefix = preg_replace('/[^A-Z0-9]/', '', $namePrefix);
+            
+            // Ensure uniqueness with random 4-digit number
+            do {
+                $randomNum = str_pad((string)rand(0, 9999), 4, '0', STR_PAD_LEFT);
+                $username = $namePrefix . '-KASSA' . $randomNum;
+                $exists = Member::where('username', $username)->exists();
+            } while ($exists);
+        }
+
         $member = Member::create([
             'full_name' => $request->full_name,
             'member_id_number' => $memberIdNumber,
-            'username' => $request->username,
+            'username' => $username,
             'email' => $request->email,
             'phone_number' => $request->phone_number,
             'address' => $request->address,
@@ -117,12 +139,52 @@ class AuthController extends Controller
         // Format amount for message
         $formattedAmount = 'Rp ' . number_format($simpananPokokAmount, 0, ',', '.');
 
+        // Send WhatsApp welcome message (async, don't block response)
+        if ($request->phone_number) {
+            try {
+                $whatsappServiceUrl = config('services.whatsapp.service_url', 'http://localhost:3001');
+                $loginUrl = config('app.frontend_url', 'https://dev.kassaone.id');
+                
+                $welcomeMessage = "🕌 *Ahlan Wa Marhaban Bikum!*\n\n";
+                $welcomeMessage .= "Assalamu'alaikum *{$member->full_name}*,\n\n";
+                $welcomeMessage .= "Selamat bergabung di *KASSA ONE* ☺️\n\n";
+                $welcomeMessage .= "━━━━━━━━━━━━━━━\n";
+                $welcomeMessage .= "🔑 *AKSES LOGIN*\n";
+                $welcomeMessage .= "━━━━━━━━━━━━━━━\n";
+                $welcomeMessage .= "👤 Username: `{$member->username}`\n";
+                $welcomeMessage .= "🔐 Password: `{$request->password}`\n";
+                $welcomeMessage .= "🌐 {$loginUrl}\n\n";
+                $welcomeMessage .= "━━━━━━━━━━━━━━━\n";
+                $welcomeMessage .= "📋 *LANGKAH SELANJUTNYA*\n";
+                $welcomeMessage .= "━━━━━━━━━━━━━━━\n";
+                $welcomeMessage .= "1️⃣ Login ke akun Anda\n";
+                $welcomeMessage .= "2️⃣ Upload KTP & Selfie\n";
+                $welcomeMessage .= "3️⃣ Bayar Simpanan Pokok\n";
+                $welcomeMessage .= "4️⃣ Tunggu verifikasi admin\n\n";
+                $welcomeMessage .= "⚠️ _Simpan info ini & jangan bagikan password Anda_\n\n";
+                $welcomeMessage .= "Jazakumullahu Khairan 🙏";
+
+                Http::timeout(10)->post("{$whatsappServiceUrl}/send", [
+                    'phone' => $request->phone_number,
+                    'message' => $welcomeMessage,
+                ]);
+                
+                Log::info('WhatsApp welcome message sent to: ' . $request->phone_number);
+            } catch (\Exception $e) {
+                // Don't fail registration if WhatsApp fails
+                Log::error('Failed to send WhatsApp welcome message: ' . $e->getMessage());
+            }
+        }
+
         return response()->json([
+            'success' => true,
             'message' => "Pendaftaran berhasil! Silakan login dan upload bukti pembayaran Simpanan Pokok sebesar {$formattedAmount}",
-            'user' => [
+            'username' => $member->username,
+            'data' => [
                 'username' => $member->username,
                 'full_name' => $member->full_name,
                 'member_id_number' => $member->member_id_number,
+                'payment_amount' => $simpananPokokAmount,
             ],
         ], 201);
     }
