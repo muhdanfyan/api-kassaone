@@ -17,6 +17,8 @@ use App\Http\Controllers\Api\TestimonialController;
 use App\Http\Controllers\Api\OrganizationController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\WhatsAppController;
+use App\Http\Controllers\Api\AccountController;
+use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\SHUDistributionController;
 use App\Http\Controllers\ShuPercentageSettingController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
@@ -83,6 +85,13 @@ Route::middleware(['auth:api'])->group(function () {
     Route::get('/finance/summary', [FinanceController::class, 'summary']);
     Route::get('/finance/monthly', [FinanceController::class, 'monthly']);
     Route::get('/finance/transaction-summary', [FinanceController::class, 'transactionSummary']);
+    Route::get('/finance/transactions/recent', [FinanceController::class, 'recentTransactions']);
+    
+    // Account & Expense endpoints
+    Route::get('/accounts', [AccountController::class, 'index']);
+    Route::get('/accounts/{id}', [AccountController::class, 'show']);
+    Route::get('/expenses', [ExpenseController::class, 'index']);
+    Route::get('/expenses/{id}', [ExpenseController::class, 'show']);
     
     Route::get('/member-types', [MemberController::class, 'getMemberTypes']);
     Route::get('/members', [MemberController::class, 'index']);
@@ -212,4 +221,12 @@ Route::middleware(['auth:api', \App\Http\Middleware\ValidateCsrfToken::class])->
         Route::post('/disconnect', [WhatsAppController::class, 'disconnect']);
         Route::post('/send-test', [WhatsAppController::class, 'sendTest']);
     });
+    
+    // Account & Expense Management (POST/PUT/DELETE)
+    Route::post('/accounts', [AccountController::class, 'store']);
+    Route::put('/accounts/{id}', [AccountController::class, 'update']);
+    Route::delete('/accounts/{id}', [AccountController::class, 'destroy']);
+    Route::post('/expenses', [ExpenseController::class, 'store']);
+    Route::put('/expenses/{id}', [ExpenseController::class, 'update']);
+    Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
 });

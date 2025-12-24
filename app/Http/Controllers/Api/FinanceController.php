@@ -119,4 +119,35 @@ class FinanceController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Get recent transactions
+     */
+    public function recentTransactions(Request $request)
+    {
+        $limit = $request->get('limit', 10);
+
+        $transactions = Transaction::with(['savingsAccount.member'])
+            ->orderBy('transaction_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->limit($limit)
+            ->get()
+            ->map(function ($transaction) {
+                return [
+                    'id' => $transaction->id,
+                    'type' => $transaction->transaction_type,
+                    'amount' => (float) $transaction->amount,
+                    'description' => $transaction->description,
+                    'date' => $transaction->transaction_date,
+                    'member_name' => $transaction->savingsAccount?->member?->full_name ?? 'Unknown',
+                    'account_type' => $transaction->savingsAccount?->account_type ?? 'unknown',
+                    'created_at' => $transaction->created_at,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $transactions,
+        ]);
+    }
 }
