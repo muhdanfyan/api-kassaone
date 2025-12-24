@@ -83,6 +83,7 @@ class Member extends Authenticatable implements JWTSubject
         'nik',
         'join_date',
         'member_type',
+        'is_perumahan',
         'status',
         'role_id',
         'position',
@@ -128,6 +129,7 @@ class Member extends Authenticatable implements JWTSubject
         'birth_date' => 'date',
         'payment_amount' => 'decimal:2',
         'monthly_savings_amount' => 'decimal:2',
+        'is_perumahan' => 'boolean',
     ];
 
     /**
@@ -235,6 +237,30 @@ class Member extends Authenticatable implements JWTSubject
             self::VERIFICATION_PENDING,
             self::VERIFICATION_PAYMENT_PENDING
         ]) && $this->status === 'Aktif';
+    }
+
+    /**
+     * Accessor for human-readable perumahan status
+     */
+    public function getPerumahanStatusAttribute(): string
+    {
+        return $this->is_perumahan ? 'Perumahan' : 'Non Perumahan';
+    }
+
+    /**
+     * Scope for filtering Perumahan members
+     */
+    public function scopePerumahan($query)
+    {
+        return $query->where('is_perumahan', true);
+    }
+
+    /**
+     * Scope for filtering Non Perumahan members
+     */
+    public function scopeNonPerumahan($query)
+    {
+        return $query->where('is_perumahan', false);
     }
 
     /**

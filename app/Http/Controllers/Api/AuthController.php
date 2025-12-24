@@ -19,38 +19,34 @@ use Tymon\JWTAuth\Exceptions\JWTException;
 class AuthController extends Controller
 {
     /**
-     * Generate username from full name
-     * Format: NAMAPERTAMA-NAMAKEDUA-KASSA0001
+     * Generate username dengan format KASSA### (auto-increment)
+     * Format: KASSA001, KASSA002, KASSA003, dst
+     * 
+     * @return string Generated username
      */
-    private function generateUsername($fullName)
+    private function generateUsername()
     {
-        // Split name and get first two words
-        $nameParts = array_filter(explode(' ', trim($fullName)));
-        $firstName = strtoupper($nameParts[0] ?? '');
-        $secondName = strtoupper($nameParts[1] ?? '');
-        
-        // Create name prefix (if only 1 word, use 1 word only)
-        $namePrefix = $secondName ? $firstName . $secondName : $firstName;
-        
-        // Remove special characters from name prefix
-        $namePrefix = preg_replace('/[^A-Z0-9]/', '', $namePrefix);
-        
-        // Get next number based on existing KASSA usernames
-        $memberCount = Member::where('username', 'LIKE', '%-KASSA%')->count();
-        $nextNumber = str_pad($memberCount + 1, 4, '0', STR_PAD_LEFT);
-        
-        // Build username
-        $username = $namePrefix . '-KASSA' . $nextNumber;
-        
-        // Handle collision - ensure uniqueness
-        $attempt = 0;
-        while (Member::where('username', $username)->exists()) {
-            $attempt++;
-            $nextNumber = str_pad($memberCount + 1 + $attempt, 4, '0', STR_PAD_LEFT);
-            $username = $namePrefix . '-KASSA' . $nextNumber;
-        }
-        
-        return $username;
+        // Use database transaction to prevent race condition
+        return \DB::transaction(function () {
+            // Cari member terakhir dengan format KASSA
+            $lastMember = Member::where('username', 'LIKE', 'KASSA%')
+                ->orderBy('username', 'DESC')
+                ->lockForUpdate() // Prevent race condition
+                ->first();
+            
+            if ($lastMember) {
+                // Extract nomor dari username terakhir (contoh: KASSA005 -> 5)
+                $lastNumber = intval(substr($lastMember->username, 5));
+                $newNumber = $lastNumber + 1;
+            } else {
+                // Jika belum ada member, mulai dari 1
+                $newNumber = 1;
+            }
+            
+            // Format: KASSA001, KASSA002, dst (3 digit dengan leading zeros)
+            // Ubah menjadi 4 digit jika diperlukan: str_pad($newNumber, 4, '0', STR_PAD_LEFT)
+            return 'KASSA' . str_pad($newNumber, 3, '0', STR_PAD_LEFT);
+        });
     }
 
     public function register(Request $request)
@@ -76,6 +72,7 @@ class AuthController extends Controller
             'ktp_scan' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'selfie_with_ktp' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'nik' => 'nullable|string|max:20',
+            'is_perumahan' => 'nullable|boolean',
         ]);
 
         // Find 'Anggota' role ID, or use provided role_id
@@ -115,10 +112,11 @@ class AuthController extends Controller
         // Use current date if join_date not provided
         $joinDate = $request->join_date ?? now()->format('Y-m-d');
 
-        // Generate username if not provided
+        // Generate username OTOMATIS dengan format KASSA###
+        // Username tidak lagi menggunakan nama, melainkan auto-increment
         $username = $request->username;
         if (empty($username)) {
-            $username = $this->generateUsername($request->full_name);
+            $username = $this->generateUsername();
         }
 
         // Handle file uploads
@@ -150,6 +148,7 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
             'status' => 'Aktif',
             'member_type' => $request->member_type ?? 'Biasa',
+            'is_perumahan' => $request->is_perumahan ?? false,
             'role_id' => $roleId,
             'verification_status' => Member::VERIFICATION_PENDING, // Set pending, need payment
             'payment_amount' => $simpananPokokAmount, // Get from system settings
@@ -166,6 +165,7 @@ class AuthController extends Controller
                 'full_name' => $member->full_name,
                 'member_id_number' => $member->member_id_number,
                 'email' => $member->email,
+                'is_perumahan' => $member->is_perumahan,
                 'status' => $member->status,
             ],
         ], 201);

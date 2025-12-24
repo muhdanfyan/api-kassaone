@@ -20,14 +20,43 @@ use App\Mail\MemberCredentialsEmail;
 class MemberController extends Controller
 {
     /**
-     * Get all members
+     * Get all members with optional filters
      * 
+     * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function index()
+    public function index(Request $request)
     {
-        $members = Member::with('role')->get();
-        return response()->json($members);
+        $query = Member::with('role');
+
+        // Filter by perumahan status
+        if ($request->has('is_perumahan')) {
+            $isPerumahan = filter_var($request->is_perumahan, FILTER_VALIDATE_BOOLEAN);
+            $query->where('is_perumahan', $isPerumahan);
+        }
+
+        // Filter by member type
+        if ($request->has('member_type')) {
+            $query->where('member_type', $request->member_type);
+        }
+
+        // Filter by verification status
+        if ($request->has('verification_status')) {
+            $query->where('verification_status', $request->verification_status);
+        }
+
+        // Filter by status (Aktif/Tidak Aktif)
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $members = $query->get();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $members,
+            'count' => $members->count()
+        ]);
     }
 
     /**
@@ -714,5 +743,50 @@ class MemberController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Get perumahan statistics
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPerumahanStats()
+    {
+        $stats = [
+            'total' => Member::count(),
+            'perumahan' => Member::where('is_perumahan', true)->count(),
+            'non_perumahan' => Member::where('is_perumahan', false)->count(),
+            'percentage_perumahan' => 0,
+            'percentage_non_perumahan' => 0,
+        ];
+
+        if ($stats['total'] > 0) {
+            $stats['percentage_perumahan'] = round(($stats['perumahan'] / $stats['total']) * 100, 2);
+            $stats['percentage_non_perumahan'] = round(($stats['non_perumahan'] / $stats['total']) * 100, 2);
+        }
+
+        // Get breakdown by member type
+        $breakdown = [
+            'perumahan_by_type' => [],
+            'non_perumahan_by_type' => []
+        ];
+
+        $memberTypes = Member::getMemberTypes();
+        foreach ($memberTypes as $type) {
+            $breakdown['perumahan_by_type'][$type] = Member::where('is_perumahan', true)
+                ->where('member_type', $type)
+                ->count();
+            $breakdown['non_perumahan_by_type'][$type] = Member::where('is_perumahan', false)
+                ->where('member_type', $type)
+                ->count();
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'summary' => $stats,
+                'breakdown' => $breakdown
+            ]
+        ]);
     }
 }

@@ -90,6 +90,7 @@ Route::middleware(['auth:api'])->group(function () {
     Route::get('/members/verification/status', [MemberController::class, 'getByVerificationStatus']);
     Route::get('/members/payment/stats', [MemberController::class, 'getPaymentStats']);
     Route::get('/members/simpanan-pokok/stats', [MemberController::class, 'getSimpananPokokStats']);
+    Route::get('/members/perumahan-stats', [MemberController::class, 'getPerumahanStats']); // NEW: Perumahan statistics
     Route::post('/members/migrate-old-simpanan-pokok', [MemberController::class, 'migrateOldMembersSimpananPokok']);
     
     Route::get('/savings/{savingsAccount}', [SavingsAccountController::class, 'show']);
