@@ -24,6 +24,7 @@ use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Admin\PasswordResetRequestController;
 use App\Http\Controllers\Member\RegistrationController;
 use App\Http\Controllers\ValidationController;
+use App\Http\Controllers\Api\WhatsAppController;
 
 /*
 |--------------------------------------------------------------------------
@@ -136,6 +137,14 @@ Route::middleware(['auth:api'])->group(function () {
         Route::get('/transactions/recent', [FinanceController::class, 'getRecentTransactions']);
         Route::get('/breakdown', [FinanceController::class, 'getBreakdown']);
     });
+    
+    // WhatsApp Management (Admin only)
+    Route::prefix('whatsapp')->group(function () {
+        Route::get('/status', [WhatsAppController::class, 'getStatus']);
+        Route::get('/qr', [WhatsAppController::class, 'getQR']);
+        Route::get('/session-info', [WhatsAppController::class, 'getSessionInfo']);
+        Route::get('/broadcast-targets', [WhatsAppController::class, 'getBroadcastTargets']);
+    });
 });
 
 // Routes that require both JWT authentication AND CSRF token (POST, PUT, PATCH, DELETE)
@@ -220,4 +229,12 @@ Route::middleware(['auth:api', \App\Http\Middleware\ValidateCsrfToken::class])->
     Route::post('/expenses', [ExpenseController::class, 'store']);
     Route::put('/expenses/{id}', [ExpenseController::class, 'update']);
     Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
+    
+    // WhatsApp Management - POST routes (Admin only)
+    Route::prefix('whatsapp')->group(function () {
+        Route::post('/initialize', [WhatsAppController::class, 'initialize']);
+        Route::post('/disconnect', [WhatsAppController::class, 'disconnect']);
+        Route::post('/send-test', [WhatsAppController::class, 'sendTest']);
+        Route::post('/broadcast', [WhatsAppController::class, 'sendBroadcast']);
+    });
 });
