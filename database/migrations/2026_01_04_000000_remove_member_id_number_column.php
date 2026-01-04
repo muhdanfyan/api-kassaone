@@ -1,0 +1,31 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     * 
+     * Menghapus kolom member_id_number karena redundan.
+     * Username sekarang berfungsi sebagai nomor anggota sekaligus username untuk login.
+     */
+    public function up(): void
+    {
+        Schema::table('members', function (Blueprint $table) {
+            $table->dropColumn('member_id_number');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('members', function (Blueprint $table) {
+            $table->string('member_id_number')->unique()->after('id');
+        });
+    }
+};

@@ -21,7 +21,6 @@ class DemoUserSeeder extends Seeder
 
         // Create Admin Member (with authentication)
         Member::create([
-            'member_id_number' => 'ADMIN-1',
             'full_name' => 'Admin KASSA',
             'username' => 'admin',
             'email' => 'admin@kassa.co.id',
@@ -34,7 +33,6 @@ class DemoUserSeeder extends Seeder
 
         // Create Ketua Member (with authentication)
         Member::create([
-            'member_id_number' => 'PENGURUS-1',
             'full_name' => 'Ketua KASSA',
             'username' => 'ketua',
             'email' => 'ketua@kassa.com',
@@ -47,7 +45,6 @@ class DemoUserSeeder extends Seeder
 
         // Create Pengawas Member (with authentication)
         Member::create([
-            'member_id_number' => 'PENGAWAS-1',
             'full_name' => 'Pengawas KASSA',
             'username' => 'pengawas',
             'email' => 'pengawas@kassa.com',

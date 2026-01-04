@@ -33,10 +33,10 @@ class OrganizationSeeder extends Seeder
         // Update existing members or create sample organization members
         // Pengurus
         Member::updateOrCreate(
-            ['member_id_number' => 'KOP-001'],
+            ['username' => 'ahmad.subarjo'],
             [
                 'full_name' => 'Ahmad Subarjo',
-                'username' => 'ahmad.subarjo',
+                'member_id_number' => 'KOP-001',
                 'email' => 'ahmad.subarjo@kassa.coop',
                 'password' => Hash::make('password123'),
                 'phone_number' => '081234567001',
@@ -51,10 +51,10 @@ class OrganizationSeeder extends Seeder
         );
 
         Member::updateOrCreate(
-            ['member_id_number' => 'KOP-002'],
+            ['username' => 'siti.aminah'],
             [
                 'full_name' => 'Siti Aminah',
-                'username' => 'siti.aminah',
+                'member_id_number' => 'KOP-002',
                 'email' => 'siti.aminah@kassa.coop',
                 'password' => Hash::make('password123'),
                 'phone_number' => '081234567002',
@@ -69,10 +69,10 @@ class OrganizationSeeder extends Seeder
         );
 
         Member::updateOrCreate(
-            ['member_id_number' => 'KOP-003'],
+            ['username' => 'budi.santoso'],
             [
                 'full_name' => 'Budi Santoso',
-                'username' => 'budi.santoso',
+                'member_id_number' => 'KOP-003',
                 'email' => 'budi.santoso@kassa.coop',
                 'password' => Hash::make('password123'),
                 'phone_number' => '081234567003',
@@ -88,10 +88,10 @@ class OrganizationSeeder extends Seeder
 
         // Pengawas
         Member::updateOrCreate(
-            ['member_id_number' => 'KOP-004'],
+            ['username' => 'dewi.lestari'],
             [
                 'full_name' => 'Dewi Lestari',
-                'username' => 'dewi.lestari',
+                'member_id_number' => 'KOP-004',
                 'email' => 'dewi.lestari@kassa.coop',
                 'password' => Hash::make('password123'),
                 'phone_number' => '081234567004',
@@ -106,10 +106,10 @@ class OrganizationSeeder extends Seeder
         );
 
         Member::updateOrCreate(
-            ['member_id_number' => 'KOP-005'],
+            ['username' => 'eko.prasetyo'],
             [
                 'full_name' => 'Eko Prasetyo',
-                'username' => 'eko.prasetyo',
+                'member_id_number' => 'KOP-005',
                 'email' => 'eko.prasetyo@kassa.coop',
                 'password' => Hash::make('password123'),
                 'phone_number' => '081234567005',
@@ -125,10 +125,10 @@ class OrganizationSeeder extends Seeder
 
         // Karyawan
         Member::updateOrCreate(
-            ['member_id_number' => 'KOP-006'],
+            ['username' => 'rina.marlina'],
             [
                 'full_name' => 'Rina Marlina',
-                'username' => 'rina.marlina',
+                'member_id_number' => 'KOP-006',
                 'email' => 'rina.marlina@kassa.coop',
                 'password' => Hash::make('password123'),
                 'phone_number' => '081234567006',
@@ -143,10 +143,10 @@ class OrganizationSeeder extends Seeder
         );
 
         Member::updateOrCreate(
-            ['member_id_number' => 'KOP-007'],
+            ['username' => 'agus.salim'],
             [
                 'full_name' => 'Agus Salim',
-                'username' => 'agus.salim',
+                'member_id_number' => 'KOP-007',
                 'email' => 'agus.salim@kassa.coop',
                 'password' => Hash::make('password123'),
                 'phone_number' => '081234567007',
@@ -161,10 +161,10 @@ class OrganizationSeeder extends Seeder
         );
 
         Member::updateOrCreate(
-            ['member_id_number' => 'KOP-008'],
+            ['username' => 'putri.ayu'],
             [
                 'full_name' => 'Putri Ayu',
-                'username' => 'putri.ayu',
+                'member_id_number' => 'KOP-008',
                 'email' => 'putri.ayu@kassa.coop',
                 'password' => Hash::make('password123'),
                 'phone_number' => '081234567008',

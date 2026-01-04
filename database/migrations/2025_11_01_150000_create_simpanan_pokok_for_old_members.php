@@ -47,7 +47,7 @@ return new class extends Migration
 
                 DB::commit();
                 
-                echo "✅ Created Simpanan Pokok for: {$member->name} (MEM-{$member->member_id_number})\n";
+                echo "✅ Created Simpanan Pokok for: {$member->name} ({$member->username})\n";
             } catch (\Exception $e) {
                 DB::rollBack();
                 echo "❌ Failed for: {$member->name} - {$e->getMessage()}\n";

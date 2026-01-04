@@ -48,9 +48,8 @@ class MemberSeeder extends Seeder
 
         foreach ($membersData as $key => $data) {
             Member::create([
-                'member_id_number' => 'MEMBER-' . ($key + 1),
                 'full_name' => $data['full_name'],
-                'username' => strtolower(explode(' ', $data['full_name'])[0]), // Use first name as username
+                'username' => 'MEM-' . str_pad((string)($key + 1), 4, '0', STR_PAD_LEFT),
                 'email' => $data['email'],
                 'password' => Hash::make('password'),
                 'address' => $data['address'],

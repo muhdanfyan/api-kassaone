@@ -11,6 +11,7 @@ use App\Models\CsrfToken;
 use App\Models\SystemSetting;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -19,33 +20,33 @@ use Tymon\JWTAuth\Exceptions\JWTException;
 class AuthController extends Controller
 {
     /**
-     * Generate username dengan format KASSA### (auto-increment)
-     * Format: KASSA001, KASSA002, KASSA003, dst
+     * Generate username dengan format MEM-#### (auto-increment)
+     * Username ini juga berfungsi sebagai nomor anggota
+     * Format: MEM-0001, MEM-0002, MEM-0003, dst
      * 
      * @return string Generated username
      */
     private function generateUsername()
     {
         // Use database transaction to prevent race condition
-        return \DB::transaction(function () {
-            // Cari member terakhir dengan format KASSA
-            $lastMember = Member::where('username', 'LIKE', 'KASSA%')
+        return DB::transaction(function () {
+            // Cari member terakhir dengan format MEM
+            $lastMember = Member::where('username', 'LIKE', 'MEM-%')
                 ->orderBy('username', 'DESC')
                 ->lockForUpdate() // Prevent race condition
                 ->first();
             
             if ($lastMember) {
-                // Extract nomor dari username terakhir (contoh: KASSA005 -> 5)
-                $lastNumber = intval(substr($lastMember->username, 5));
+                // Extract nomor dari username terakhir (contoh: MEM-0005 -> 5)
+                $lastNumber = intval(substr($lastMember->username, 4));
                 $newNumber = $lastNumber + 1;
             } else {
                 // Jika belum ada member, mulai dari 1
                 $newNumber = 1;
             }
             
-            // Format: KASSA001, KASSA002, dst (3 digit dengan leading zeros)
-            // Ubah menjadi 4 digit jika diperlukan: str_pad($newNumber, 4, '0', STR_PAD_LEFT)
-            return 'KASSA' . str_pad($newNumber, 3, '0', STR_PAD_LEFT);
+            // Format: MEM-0001, MEM-0002, dst (4 digit dengan leading zeros)
+            return 'MEM-' . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
         });
     }
 
@@ -60,7 +61,6 @@ class AuthController extends Controller
 
         $request->validate([
             'full_name' => 'required|string|max:255',
-            'member_id_number' => 'nullable|string|max:100|unique:members',
             'username' => 'nullable|string|max:100|unique:members',
             'email' => 'nullable|string|email|max:255|unique:members',
             'phone_number' => 'nullable|string|max:50',
@@ -85,35 +85,10 @@ class AuthController extends Controller
             $roleId = $anggotaRole->id;
         }
 
-        // Generate member_id_number if not provided
-        $memberIdNumber = $request->member_id_number;
-        if (!$memberIdNumber) {
-            // Get the last member_id_number and increment
-            $lastMember = Member::whereNotNull('member_id_number')
-                ->orderBy('member_id_number', 'desc')
-                ->first();
-            
-            if ($lastMember && preg_match('/MEM-(\d+)/', $lastMember->member_id_number, $matches)) {
-                $nextNumber = (int)$matches[1] + 1;
-            } else {
-                $nextNumber = 1;
-            }
-            
-            // Ensure uniqueness - if exists, keep incrementing
-            do {
-                $memberIdNumber = 'MEM-' . str_pad((string)$nextNumber, 4, '0', STR_PAD_LEFT);
-                $exists = Member::where('member_id_number', $memberIdNumber)->exists();
-                if ($exists) {
-                    $nextNumber++;
-                }
-            } while ($exists);
-        }
-
         // Use current date if join_date not provided
         $joinDate = $request->join_date ?? now()->format('Y-m-d');
 
-        // Generate username OTOMATIS dengan format KASSA###
-        // Username tidak lagi menggunakan nama, melainkan auto-increment
+        // Generate username OTOMATIS dengan format MEM-####
         $username = $request->username;
         if (empty($username)) {
             $username = $this->generateUsername();
@@ -136,7 +111,6 @@ class AuthController extends Controller
 
         $member = Member::create([
             'full_name' => $request->full_name,
-            'member_id_number' => $memberIdNumber,
             'username' => $username,
             'email' => $request->email,
             'phone_number' => $request->phone_number,
@@ -163,7 +137,6 @@ class AuthController extends Controller
             'data' => [
                 'username' => $member->username,
                 'full_name' => $member->full_name,
-                'member_id_number' => $member->member_id_number,
                 'email' => $member->email,
                 'is_perumahan' => $member->is_perumahan,
                 'status' => $member->status,

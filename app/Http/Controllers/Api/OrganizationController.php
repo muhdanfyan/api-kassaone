@@ -36,7 +36,7 @@ class OrganizationController extends Controller
                 foreach ($role->members as $member) {
                     $memberData = [
                         'id' => $member->id,
-                        'member_id_number' => $member->member_id_number,
+                        'username' => $member->username,
                         'name' => $member->full_name,
                         'position' => $member->position,
                         'role_id' => $member->role_id,
@@ -110,7 +110,7 @@ class OrganizationController extends Controller
                 'message' => 'Position updated successfully',
                 'data' => [
                     'id' => $member->id,
-                    'member_id_number' => $member->member_id_number,
+                    'username' => $member->member_id_number,
                     'name' => $member->full_name,
                     'position' => $member->position,
                     'role_id' => $member->role_id,

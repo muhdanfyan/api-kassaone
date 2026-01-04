@@ -71,7 +71,6 @@ class Member extends Authenticatable implements JWTSubject
     }
 
     protected $fillable = [
-        'member_id_number',
         'full_name',
         'username',
         'password',
@@ -277,7 +276,6 @@ class Member extends Authenticatable implements JWTSubject
     public function getJWTCustomClaims()
     {
         return [
-            'member_id_number' => $this->member_id_number,
             'username' => $this->username,
             'email' => $this->email,
             'role_id' => $this->role_id,

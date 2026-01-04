@@ -81,8 +81,7 @@ class MemberController extends Controller
     {
         $request->validate([
             'full_name' => 'required|string|max:255',
-            'member_id_number' => 'nullable|string|max:100|unique:members',
-            'username' => 'required|string|min:3|max:50|unique:members',
+            'username' => 'nullable|string|min:3|max:50|unique:members',
             'email' => 'nullable|email|max:255|unique:members',
             'phone_number' => 'nullable|string|min:10|max:13|unique:members',
             'nik' => 'required|string|size:16|regex:/^[0-9]+$/|unique:members',
@@ -98,34 +97,21 @@ class MemberController extends Controller
             'send_whatsapp_notification' => 'boolean',
         ]);
 
-        // Auto-generate member_id_number if not provided
-        $memberIdNumber = $request->member_id_number;
-        if (empty($memberIdNumber)) {
-            // Determine prefix based on member_type
-            $prefix = match($request->member_type) {
-                'Pendiri' => 'P',
-                'Biasa' => 'B',
-                'Calon' => 'C',
-                'Kehormatan' => 'K',
-                default => 'M',
-            };
-            
-            // Get the last member with same prefix
-            $lastMember = Member::where('member_id_number', 'like', $prefix . '-%')
-                ->orderBy('member_id_number', 'desc')
+        // Auto-generate username if not provided with format MEM-####
+        $username = $request->username;
+        if (empty($username)) {
+            $lastMember = Member::where('username', 'LIKE', 'MEM-%')
+                ->orderBy('username', 'desc')
                 ->first();
             
-            if ($lastMember && $lastMember->member_id_number) {
-                // Extract number from P-00001 -> 1
-                $parts = explode('-', $lastMember->member_id_number);
-                $lastNumber = isset($parts[1]) ? (int) $parts[1] : 0;
+            if ($lastMember) {
+                $lastNumber = intval(substr($lastMember->username, 4));
                 $nextNumber = $lastNumber + 1;
             } else {
-                // No members with this prefix yet, start from 1
                 $nextNumber = 1;
             }
             
-            $memberIdNumber = $prefix . '-' . str_pad((string) $nextNumber, 5, '0', STR_PAD_LEFT);
+            $username = 'MEM-' . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
         }
 
         // Auto-set role to 'Anggota' if not provided
@@ -149,8 +135,7 @@ class MemberController extends Controller
         
         $member = Member::create([
             'full_name' => $request->full_name,
-            'member_id_number' => $memberIdNumber,
-            'username' => $request->username,
+            'username' => $username,
             'email' => $request->email,
             'phone_number' => $request->phone_number,
             'nik' => $request->nik,
@@ -211,7 +196,6 @@ class MemberController extends Controller
     {
         $request->validate([
             'full_name' => 'sometimes|required|string|max:255',
-            'member_id_number' => 'sometimes|required|string|max:100|unique:members,member_id_number,' . $member->id,
             'username' => 'sometimes|required|string|max:100|unique:members,username,' . $member->id,
             'email' => 'nullable|string|email|max:255|unique:members,email,' . $member->id,
             'phone_number' => 'nullable|string|max:50',
@@ -560,7 +544,7 @@ class MemberController extends Controller
                 DB::commit();
                 $created++;
                 
-                Log::info("Created Simpanan Pokok for member: {$member->name} ({$member->member_id_number})");
+                Log::info("Created Simpanan Pokok for member: {$member->name} ({$member->username})");
             } catch (\Exception $e) {
                 DB::rollBack();
                 $failed++;
