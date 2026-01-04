@@ -18,7 +18,8 @@ class AccountController extends Controller
         try {
             $user = JWTAuth::parseToken()->authenticate();
             
-            $accounts = Account::with('creator:id,full_name')
+            $accounts = Account::with(['creator:id,full_name', 'children.children'])
+                ->whereNull('parent_id')
                 ->orderBy('code', 'asc')
                 ->get();
 
@@ -46,6 +47,9 @@ class AccountController extends Controller
             $validated = $request->validate([
                 'name' => 'required|string|min:3|max:255',
                 'description' => 'nullable|string|max:1000',
+                'parent_id' => 'nullable|exists:accounts,id',
+                'type' => 'nullable|string|max:50',
+                'group' => 'nullable|string|max:100',
             ]);
 
             // Generate account code (ACC-XXXX)
@@ -62,6 +66,9 @@ class AccountController extends Controller
             $account = Account::create([
                 'code' => $code,
                 'name' => $validated['name'],
+                'parent_id' => $validated['parent_id'] ?? null,
+                'type' => $validated['type'] ?? null,
+                'group' => $validated['group'] ?? null,
                 'description' => $validated['description'] ?? null,
                 'created_by' => $user->id,
             ]);
@@ -101,12 +108,18 @@ class AccountController extends Controller
             $validated = $request->validate([
                 'name' => 'required|string|min:3|max:255',
                 'description' => 'nullable|string|max:1000',
+                'parent_id' => 'nullable|exists:accounts,id',
+                'type' => 'nullable|string|max:50',
+                'group' => 'nullable|string|max:100',
             ]);
 
-            // Only update name and description, NOT the code
+            // Only update name, description, and hierarchy, NOT the code
             $account->update([
                 'name' => $validated['name'],
                 'description' => $validated['description'] ?? null,
+                'parent_id' => $validated['parent_id'] ?? $account->parent_id,
+                'type' => $validated['type'] ?? $account->type,
+                'group' => $validated['group'] ?? $account->group,
             ]);
 
             $account->load('creator:id,full_name');

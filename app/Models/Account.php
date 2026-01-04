@@ -24,11 +24,30 @@ class Account extends Model
      */
     protected $fillable = [
         'id',
+        'parent_id',
         'code',
         'name',
+        'type',
+        'group',
         'description',
         'created_by',
     ];
+
+    /**
+     * Get the parent account
+     */
+    public function parent()
+    {
+        return $this->belongsTo(Account::class, 'parent_id');
+    }
+
+    /**
+     * Get the child accounts
+     */
+    public function children()
+    {
+        return $this->hasMany(Account::class, 'parent_id');
+    }
 
     /**
      * The attributes that should be cast.
