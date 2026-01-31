@@ -110,7 +110,7 @@ class OrganizationController extends Controller
                 'message' => 'Position updated successfully',
                 'data' => [
                     'id' => $member->id,
-                    'username' => $member->member_id_number,
+                    'username' => $member->username,
                     'name' => $member->full_name,
                     'position' => $member->position,
                     'role_id' => $member->role_id,

@@ -43,6 +43,11 @@ return [
 
         'api' => [
             'driver' => 'jwt',
+            'provider' => 'members',
+        ],
+
+        'admin' => [
+            'driver' => 'jwt',
             'provider' => 'users',
         ],
     ],
@@ -65,15 +70,15 @@ return [
     */
 
     'providers' => [
-        'users' => [
+        'members' => [
             'driver' => 'eloquent',
             'model' => App\Models\Member::class,
         ],
 
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
+        'users' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\User::class,
+        ],
     ],
 
     /*

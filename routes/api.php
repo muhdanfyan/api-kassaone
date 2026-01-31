@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AdminAuthController;
 use App\Http\Controllers\Api\GeneralTransactionController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\MemberController;
@@ -41,6 +42,16 @@ use App\Http\Controllers\Api\WhatsAppController;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/public/upload-payment-proof', [AuthController::class, 'uploadPaymentProofPublic']);
+
+// Admin/Staff Authentication (Table: users)
+Route::prefix('admin')->group(function () {
+    Route::post('/login', [AdminAuthController::class, 'login']);
+    
+    Route::middleware('auth:admin')->group(function () {
+        Route::get('/me', [AdminAuthController::class, 'me']);
+        Route::post('/logout', [AdminAuthController::class, 'logout']);
+    });
+});
 
 // Unique Validation Routes (Public - for real-time validation during registration)
 Route::post('/check-unique', [ValidationController::class, 'checkUnique']);

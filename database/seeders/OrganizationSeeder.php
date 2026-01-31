@@ -36,7 +36,6 @@ class OrganizationSeeder extends Seeder
             ['username' => 'ahmad.subarjo'],
             [
                 'full_name' => 'Ahmad Subarjo',
-                'member_id_number' => 'KOP-001',
                 'email' => 'ahmad.subarjo@kassa.coop',
                 'password' => Hash::make('password123'),
                 'phone_number' => '081234567001',
@@ -54,7 +53,6 @@ class OrganizationSeeder extends Seeder
             ['username' => 'siti.aminah'],
             [
                 'full_name' => 'Siti Aminah',
-                'member_id_number' => 'KOP-002',
                 'email' => 'siti.aminah@kassa.coop',
                 'password' => Hash::make('password123'),
                 'phone_number' => '081234567002',
@@ -72,7 +70,6 @@ class OrganizationSeeder extends Seeder
             ['username' => 'budi.santoso'],
             [
                 'full_name' => 'Budi Santoso',
-                'member_id_number' => 'KOP-003',
                 'email' => 'budi.santoso@kassa.coop',
                 'password' => Hash::make('password123'),
                 'phone_number' => '081234567003',
@@ -91,7 +88,6 @@ class OrganizationSeeder extends Seeder
             ['username' => 'dewi.lestari'],
             [
                 'full_name' => 'Dewi Lestari',
-                'member_id_number' => 'KOP-004',
                 'email' => 'dewi.lestari@kassa.coop',
                 'password' => Hash::make('password123'),
                 'phone_number' => '081234567004',
@@ -109,7 +105,6 @@ class OrganizationSeeder extends Seeder
             ['username' => 'eko.prasetyo'],
             [
                 'full_name' => 'Eko Prasetyo',
-                'member_id_number' => 'KOP-005',
                 'email' => 'eko.prasetyo@kassa.coop',
                 'password' => Hash::make('password123'),
                 'phone_number' => '081234567005',
@@ -128,7 +123,6 @@ class OrganizationSeeder extends Seeder
             ['username' => 'rina.marlina'],
             [
                 'full_name' => 'Rina Marlina',
-                'member_id_number' => 'KOP-006',
                 'email' => 'rina.marlina@kassa.coop',
                 'password' => Hash::make('password123'),
                 'phone_number' => '081234567006',
@@ -146,7 +140,6 @@ class OrganizationSeeder extends Seeder
             ['username' => 'agus.salim'],
             [
                 'full_name' => 'Agus Salim',
-                'member_id_number' => 'KOP-007',
                 'email' => 'agus.salim@kassa.coop',
                 'password' => Hash::make('password123'),
                 'phone_number' => '081234567007',
@@ -164,7 +157,6 @@ class OrganizationSeeder extends Seeder
             ['username' => 'putri.ayu'],
             [
                 'full_name' => 'Putri Ayu',
-                'member_id_number' => 'KOP-008',
                 'email' => 'putri.ayu@kassa.coop',
                 'password' => Hash::make('password123'),
                 'phone_number' => '081234567008',
